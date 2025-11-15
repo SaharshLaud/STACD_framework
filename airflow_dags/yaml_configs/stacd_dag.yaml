@@ -1,0 +1,165 @@
+# Complete LULC and Terrain Workflow - API Mode Test
+
+- !DAG
+  id: "new_backend_api_test"
+  name: "New Backend API Workflow Test"
+  version: "1.0"
+  description: "Testing new stacd_backend with API calls"
+  params:
+    - state
+    - district
+    - block
+    - start_year
+    - end_year
+  alg_type_nodes:
+    - LULC_Algorithm
+    - LULC_Vectorization
+    - Terrain_Algorithm
+    - Terrain_Vectorization
+    - Terrain_LULC_Slope
+    - Terrain_LULC_Plain
+  dataset_type_nodes:
+    - LULC_Raster
+    - LULC_Vector
+    - Terrain_Raster
+    - Terrain_Vector
+    - Terrain_LULC_Vector_Slope
+    - Terrain_LULC_Vector_Plain
+
+# Dataset Definitions
+- !Dataset_Type
+  id: "LULC_Raster"
+  name: "LULC_Raster"
+
+- !Dataset_Type
+  id: "Terrain_Raster"
+  name: "Terrain_Raster"
+
+- !Dataset_Type
+  id: "LULC_Vector"
+  name: "LULC_Vector"
+
+- !Dataset_Type
+  id: "Terrain_Vector"
+  name: "Terrain_Vector"
+
+- !Dataset_Type
+  id: "Terrain_LULC_Vector_Slope"
+  name: "Terrain_LULC_Vector_Slope"
+
+- !Dataset_Type
+  id: "Terrain_LULC_Vector_Plain"
+  name: "Terrain_LULC_Vector_Plain"
+
+# Algorithm Definitions
+- !Algorithm_Type
+  id: "LULC_Algorithm"
+  name: "LULC_Algorithm"
+  inputs: ["state", "district", "block", "start_year", "end_year"]
+  params:
+    - name: "state"
+      type: "string"
+    - name: "district"
+      type: "string"
+    - name: "block"
+      type: "string"
+    - name: "start_year"
+      type: "integer"
+    - name: "end_year"
+      type: "integer"
+  input_datasets: null
+  outputs:
+    - "LULC_Raster"
+
+- !Algorithm_Type
+  id: "Terrain_Algorithm"
+  name: "Terrain_Algorithm"
+  inputs: ["state", "district", "block"]
+  params:
+    - name: "state"
+      type: "string"
+    - name: "district"
+      type: "string"
+    - name: "block"
+      type: "string"
+  input_datasets: null
+  outputs:
+    - "Terrain_Raster"
+
+- !Algorithm_Type
+  id: "LULC_Vectorization"
+  name: "LULC_Vectorization"
+  inputs: ["state", "district", "block", "start_year", "end_year"]
+  params:
+    - name: "state"
+      type: "string"
+    - name: "district"
+      type: "string"
+    - name: "block"
+      type: "string"
+    - name: "start_year"
+      type: "integer"
+    - name: "end_year"
+      type: "integer"
+  input_datasets:
+    - "LULC_Raster"
+  outputs:
+    - "LULC_Vector"
+
+- !Algorithm_Type
+  id: "Terrain_Vectorization"
+  name: "Terrain_Vectorization"
+  inputs: ["state", "district", "block"]
+  params:
+    - name: "state"
+      type: "string"
+    - name: "district"
+      type: "string"
+    - name: "block"
+      type: "string"
+  input_datasets:
+    - "Terrain_Raster"
+  outputs:
+    - "Terrain_Vector"
+
+- !Algorithm_Type
+  id: "Terrain_LULC_Slope"
+  name: "Terrain_LULC_Slope"
+  inputs: ["state", "district", "block", "start_year", "end_year"]
+  params:
+    - name: "state"
+      type: "string"
+    - name: "district"
+      type: "string"
+    - name: "block"
+      type: "string"
+    - name: "start_year"
+      type: "integer"
+    - name: "end_year"
+      type: "integer"
+  input_datasets:
+    - "LULC_Raster"
+    - "Terrain_Raster"
+  outputs:
+    - "Terrain_LULC_Vector_Slope"
+
+- !Algorithm_Type
+  id: "Terrain_LULC_Plain"
+  name: "Terrain_LULC_Plain"
+  inputs: ["state", "district", "block", "start_year", "end_year"]
+  params:
+    - name: "state"
+      type: "string"
+    - name: "district"
+      type: "string"
+    - name: "block"
+      type: "string"
+    - name: "start_year"
+      type: "integer"
+    - name: "end_year"
+      type: "integer"
+  input_datasets:
+    - "LULC_Raster"
+    - "Terrain_Raster"
+  outputs:
+    - "Terrain_LULC_Vector_Plain"

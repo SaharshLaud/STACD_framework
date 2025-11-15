@@ -1,0 +1,120 @@
+# Algorithm Instances for MIXED Execution Mode
+# Lower priority number = higher priority (1 is highest)
+
+---
+!Algorithm_Instance
+type: LULC_Algorithm
+version: "1"
+assets:
+  code: "https://github.com/saharsh-laud/stacd-backend"
+date: 2024-11-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    url: "http://localhost:8000/api/v1/lulc_v3/"
+    priority: 1  # API is higher priority
+  docker:
+    enabled: true
+    image: "saharshlaud/stacd-backend:latest"
+    priority: 2
+    volumes:
+      - source: "~/.config/earthengine"
+        target: "/root/.config/earthengine"
+        read_only: true
+
+---
+!Algorithm_Instance
+type: LULC_Vectorization
+version: "1"
+assets:
+  code: "https://github.com/saharsh-laud/stacd-backend"
+date: 2024-11-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    url: "http://localhost:8000/api/v1/lulc_vector/"
+    priority: 1  # API only
+  docker:
+    enabled: false
+
+---
+!Algorithm_Instance
+type: Terrain_Algorithm
+version: "1"
+assets:
+  code: "https://github.com/saharsh-laud/stacd-backend"
+date: 2024-11-06 00:00:00
+execution_modes:
+  api:
+    enabled: false
+  docker:
+    enabled: true  # Docker only
+    image: "saharshlaud/stacd-backend:latest"
+    priority: 1
+    volumes:
+      - source: "~/.config/earthengine"
+        target: "/root/.config/earthengine"
+        read_only: true
+
+---
+!Algorithm_Instance
+type: Terrain_Vectorization
+version: "1"
+assets:
+  code: "https://github.com/saharsh-laud/stacd-backend"
+date: 2024-11-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    url: "http://localhost:8000/api/v1/generate_terrain_clusters/"
+    priority: 2
+  docker:
+    enabled: true  # Docker is higher priority
+    image: "saharshlaud/stacd-backend:latest"
+    priority: 1
+    volumes:
+      - source: "~/.config/earthengine"
+        target: "/root/.config/earthengine"
+        read_only: true
+
+---
+!Algorithm_Instance
+type: Terrain_LULC_Slope
+version: "1"
+assets:
+  code: "https://github.com/saharsh-laud/stacd-backend"
+date: 2024-11-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    url: "http://localhost:8000/api/v1/lulc_on_slope_cluster/"
+    priority: 1  # API is higher priority
+  docker:
+    enabled: true
+    image: "saharshlaud/stacd-backend:latest"
+    priority: 2
+    volumes:
+      - source: "~/.config/earthengine"
+        target: "/root/.config/earthengine"
+        read_only: true
+
+---
+!Algorithm_Instance
+type: Terrain_LULC_Plain
+version: "1"
+assets:
+  code: "https://github.com/saharsh-laud/stacd-backend"
+date: 2024-11-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    url: "http://localhost:8000/api/v1/lulc_on_plain_cluster/"
+    priority: 1  # API is higher priority
+  docker:
+    enabled: true
+    image: "saharshlaud/stacd-backend:latest"
+    priority: 2
+    volumes:
+      - source: "~/.config/earthengine"
+        target: "/root/.config/earthengine"
+        read_only: true
