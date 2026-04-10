@@ -1,0 +1,249 @@
+--- !DAG
+id: corestack_lite_dag
+name: CoRE Stack Lite - Full LULC and Terrain Workflow
+version: 2.0
+description: "8-algo workflow hitting corestack-lite Django backend APIs synchronously. Starts with AdminBoundary + MWSLayer before LULC and Terrain processing."
+params:
+  - state
+  - district
+  - block
+  - start_year
+  - end_year
+alg_type_nodes:
+  - Admin_Boundary
+  - MWS_Layer
+  - LULC_Algorithm
+  - LULC_Vectorization
+  - Terrain_Algorithm
+  - Terrain_Vectorization
+  - Terrain_LULC_Slope
+  - Terrain_LULC_Plain
+dataset_type_nodes:
+  - Pan_India_MWS
+  - Admin_Boundary_Asset
+  - MWS_Boundaries
+  - LULC_Raster
+  - LULC_Vector
+  - Terrain_Raster
+  - Terrain_Vector
+  - Terrain_LULC_Vector_Slope
+  - Terrain_LULC_Vector_Plain
+
+---
+# ROOT DATASET — pan-India public GEE asset, no region hardcoding
+--- !Dataset_Type
+id: Pan_India_MWS
+name: Pan-India Micro-Watershed Boundaries V2
+description: Public pan-India micro-watershed boundary dataset on GEE. Root input for the entire pipeline.
+format: GEEAsset
+
+---
+--- !Dataset_Type
+id: Admin_Boundary_Asset
+name: Admin Boundary Asset
+description: Tehsil-level admin boundary GEE asset produced by Admin_Boundary algo
+format: GEEAsset
+
+---
+--- !Dataset_Type
+id: MWS_Boundaries
+name: Micro-Watershed Boundaries
+description: Filtered micro-watershed boundaries for region of interest, produced by MWS_Layer algo
+format: GEEAsset
+
+---
+--- !Dataset_Type
+id: LULC_Raster
+name: LULC Raster Output
+description: Land Use Land Cover raster output from LULC_Algorithm
+format: GEEAsset
+
+---
+--- !Dataset_Type
+id: LULC_Vector
+name: LULC Vector Output
+description: Land Use Land Cover vector from LULC_Vectorization
+format: GEEAsset
+
+---
+--- !Dataset_Type
+id: Terrain_Raster
+name: Terrain Raster Output
+description: Terrain classification raster from Terrain_Algorithm
+format: GEEAsset
+
+---
+--- !Dataset_Type
+id: Terrain_Vector
+name: Terrain Vector Output
+description: Terrain cluster vector from Terrain_Vectorization
+format: GEEAsset
+
+---
+--- !Dataset_Type
+id: Terrain_LULC_Vector_Slope
+name: Terrain LULC Slope Vector
+description: LULC on slope terrain from Terrain_LULC_Slope
+format: GEEAsset
+
+---
+--- !Dataset_Type
+id: Terrain_LULC_Vector_Plain
+name: Terrain LULC Plain Vector
+description: LULC on plain terrain from Terrain_LULC_Plain
+format: GEEAsset
+
+---
+--- !Algorithm_Type
+id: Admin_Boundary
+name: Admin_Boundary
+description: Clips tehsil boundary from Survey of India data, uploads shapefile to GEE and pushes to GeoServer panchayat_boundaries workspace
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+input_datasets:
+  - Pan_India_MWS
+outputs:
+  - Admin_Boundary_Asset
+
+---
+--- !Algorithm_Type
+id: MWS_Layer
+name: MWS_Layer
+description: Filters pan-India MWS V2 to tehsil admin boundary, creates filtered_mws_uid GEE asset
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+input_datasets:
+  - Pan_India_MWS
+  - Admin_Boundary_Asset
+outputs:
+  - MWS_Boundaries
+
+---
+--- !Algorithm_Type
+id: LULC_Algorithm
+name: LULC_Algorithm
+description: Generate LULC raster by clipping pan-India LULC v3 to MWS boundaries
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: start_year
+    type: integer
+  - name: end_year
+    type: integer
+input_datasets:
+  - MWS_Boundaries
+outputs:
+  - LULC_Raster
+
+---
+--- !Algorithm_Type
+id: LULC_Vectorization
+name: LULC_Vectorization
+description: Vectorize LULC raster into per-MWS area statistics
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: start_year
+    type: integer
+  - name: end_year
+    type: integer
+input_datasets:
+  - LULC_Raster
+outputs:
+  - LULC_Vector
+
+---
+--- !Algorithm_Type
+id: Terrain_Algorithm
+name: Terrain_Algorithm
+description: Clip pan-India terrain raster (FABDEM) to MWS boundaries
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+input_datasets:
+  - MWS_Boundaries
+outputs:
+  - Terrain_Raster
+
+---
+--- !Algorithm_Type
+id: Terrain_Vectorization
+name: Terrain_Vectorization
+description: Classify terrain into clusters per MWS and export as vector
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+input_datasets:
+  - Terrain_Raster
+outputs:
+  - Terrain_Vector
+
+---
+--- !Algorithm_Type
+id: Terrain_LULC_Slope
+name: Terrain_LULC_Slope
+description: Compute LULC proportions on slope terrain clusters per MWS
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: start_year
+    type: integer
+  - name: end_year
+    type: integer
+input_datasets:
+  - LULC_Raster
+  - Terrain_Raster
+outputs:
+  - Terrain_LULC_Vector_Slope
+
+---
+--- !Algorithm_Type
+id: Terrain_LULC_Plain
+name: Terrain_LULC_Plain
+description: Compute LULC proportions on plain terrain clusters per MWS
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: start_year
+    type: integer
+  - name: end_year
+    type: integer
+input_datasets:
+  - LULC_Raster
+  - Terrain_Raster
+outputs:
+  - Terrain_LULC_Vector_Plain

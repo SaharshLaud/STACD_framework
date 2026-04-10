@@ -1,0 +1,18 @@
+---
+!Algorithm_Instance
+type: "LULC_Algorithm"
+version: "2"
+assets:
+  code: "https://github.com/saharsh-laud/stacd-backend"
+date: 2024-11-24 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    url: "http://localhost:8000/api/v2/lulc_v3/"
+    priority: 1  
+  docker:
+    enabled: true
+    priority: 2  
+    image: "saharshlaud/stacd-backend:latest"
+    module: "computing.lulc.lulc_v3_clip_river_basin_v2"  
+    function: "lulc_river_basin"

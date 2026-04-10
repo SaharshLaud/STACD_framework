@@ -1,0 +1,19 @@
+# ============================================================================
+# DATASET REPOSITORY - Root Datasets and Intermediate Outputs
+# ============================================================================
+
+# ROOT DATASET: Micro-Watershed Boundaries (Dumka/Masalia)
+---
+!Dataset_Instance
+type_id: "MWS_Boundaries"
+version: "1"
+region:
+  state: "jharkhand"
+  district: "dumka"
+  block: "masalia"
+asset_id: "projects/ee-corestackdev/assets/apps/mws/jharkhand/dumka/masalia/filtered_mws_dumka_masalia_uid"
+metadata:
+  source: "CGWB MWS Filtered Dataset"
+  created_date: "2024-01-01"
+  description: "Filtered micro-watershed boundaries for Dumka/Masalia region"
+
