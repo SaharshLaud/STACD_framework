@@ -1,0 +1,63 @@
+{% extends "appbuilder/baselayout.html" %}
+
+{% block content %}
+<div class="container">
+    <h2><i class="fa fa-database"></i> Register Dataset Version</h2>
+    <hr>
+    
+    {% if message %}
+    <div class="alert alert-{{ message_type }} alert-dismissible" role="alert">
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+        {{ message }}
+    </div>
+    {% endif %}
+    
+    <div class="panel panel-success">
+        <div class="panel-heading">
+            <h3 class="panel-title">Upload Dataset YAML File</h3>
+        </div>
+        <div class="panel-body">
+            <form method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                
+                <div class="form-group">
+                    <label for="yaml_file">Select YAML File</label>
+                    <input type="file" class="form-control" id="yaml_file" name="yaml_file" accept=".yaml,.yml" required>
+                    <small class="form-text text-muted">Upload a YAML file with Dataset_Instance definitions</small>
+                </div>
+                
+                <button type="submit" class="btn btn-success btn-lg">
+                    <i class="fa fa-upload"></i> Upload & Register
+                </button>
+            </form>
+            
+            <hr>
+            
+            <h4>YAML Format Example:</h4>
+            <pre><code>!Dataset_Instance
+type_id: "MWS_Boundaries"
+version: "2"
+region:
+  state: "jharkhand"
+  district: "dumka"
+  block: "masalia"
+asset_id: "projects/ee-username/assets/path/to/asset"
+metadata:
+  source: "Updated dataset"
+  created_date: "2026-01-20"
+  description: "New version with improvements"</code></pre>
+
+            <div class="alert alert-info">
+                <strong><i class="fa fa-info-circle"></i> Note:</strong>
+                <ul>
+                    <li>Specify the <code>version</code> number explicitly (e.g., "2", "3")</li>
+                    <li>The DAG will automatically use the <strong>latest version</strong> for root datasets</li>
+                    <li>Use <code>execution_type: "update_dataset"</code> to trigger selective recomputation</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

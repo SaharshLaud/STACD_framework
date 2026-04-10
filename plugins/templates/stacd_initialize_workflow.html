@@ -1,0 +1,81 @@
+{% extends "appbuilder/baselayout.html" %}
+
+{% block content %}
+<div class="container">
+    <h2><i class="fa fa-rocket"></i> Initialize Workflow</h2>
+    <p class="text-muted">Upload your 3 YAML configuration files to initialize a complete STACD workflow. 
+    The database will be populated and the DAG will be generated and deployed automatically.</p>
+    <hr>
+    
+    {% if message %}
+    <div class="alert alert-{{ message_type }} alert-dismissible" role="alert">
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+        {{ message }}
+    </div>
+    {% endif %}
+    
+    <div class="panel panel-info">
+        <div class="panel-heading">
+            <h3 class="panel-title"><i class="fa fa-upload"></i> Upload Workflow Configuration</h3>
+        </div>
+        <div class="panel-body">
+            <form method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                
+                <div class="form-group">
+                    <label for="dag_yaml"><strong>1. DAG YAML</strong></label>
+                    <p class="text-muted">DAG structure with Algorithm_Type and Dataset_Type definitions</p>
+                    <input type="file" class="form-control" id="dag_yaml" name="dag_yaml" accept=".yaml,.yml" required>
+                </div>
+
+                <br>
+
+                <div class="form-group">
+                    <label for="algo_repo_yaml"><strong>2. Algorithm Repository YAML</strong></label>
+                    <p class="text-muted">Algorithm_Instance definitions with execution modes (API/Docker)</p>
+                    <input type="file" class="form-control" id="algo_repo_yaml" name="algo_repo_yaml" accept=".yaml,.yml" required>
+                </div>
+
+                <br>
+
+                <div class="form-group">
+                    <label for="dataset_repo_yaml"><strong>3. Dataset Repository YAML</strong></label>
+                    <p class="text-muted">Root Dataset_Instance definitions (pre-existing datasets)</p>
+                    <input type="file" class="form-control" id="dataset_repo_yaml" name="dataset_repo_yaml" accept=".yaml,.yml" required>
+                </div>
+
+                <br>
+                
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="fa fa-rocket"></i> Initialize Workflow
+                </button>
+            </form>
+            
+            <hr>
+            
+            <h4>How it works:</h4>
+            <ol>
+                <li>Upload your 3 YAML configuration files</li>
+                <li>Click <strong>"Initialize Workflow"</strong></li>
+                <li>The system will:
+                    <ul>
+                        <li>Save YAMLs to the config directory</li>
+                        <li>Initialize the database with algorithms, datasets, and DAG structure</li>
+                        <li>Generate the DAG Python script from your YAML specification</li>
+                        <li>Deploy the DAG to Airflow so it appears in the DAGs dashboard</li>
+                    </ul>
+                </li>
+                <li>Navigate to <strong>DAGs</strong> in the top menu to see and trigger your workflow!</li>
+            </ol>
+
+            <div class="alert alert-warning">
+                <strong><i class="fa fa-exclamation-triangle"></i> Note:</strong>
+                If a DAG with the same ID already exists in the database, initialization will be skipped.
+                Use <strong>STACD → Update DAG</strong> to modify an existing workflow.
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

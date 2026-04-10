@@ -1,0 +1,33 @@
+{% extends "airflow/main.html" %}
+
+{% block content %}
+<div class="container" style="margin-top: 20px;">
+    <h2>Update DAG Structure</h2>
+    <p>Upload two YAML files to update an existing DAG with new nodes.</p>
+
+    {% if message %}
+    <div class="alert alert-{{ message_type }}">{{ message }}</div>
+    {% endif %}
+
+    <form method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="form-group">
+            <label><strong>1. New Nodes YAML</strong></label>
+            <p class="text-muted">New Algorithm_Type + Dataset_Type definitions only</p>
+            <input type="file" name="nodes_yaml" class="form-control" accept=".yaml,.yml" required>
+        </div>
+
+        <br>
+
+        <div class="form-group">
+            <label><strong>2. Updated DAG YAML</strong></label>
+            <p class="text-muted">Full updated DAG structure with new nodes added (version bumped)</p>
+            <input type="file" name="dag_yaml" class="form-control" accept=".yaml,.yml" required>
+        </div>
+
+        <br>
+        <button type="submit" class="btn btn-primary">Update DAG</button>
+    </form>
+</div>
+{% endblock %}

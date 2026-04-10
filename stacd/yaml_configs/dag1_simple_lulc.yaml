@@ -1,0 +1,52 @@
+--- !DAG
+id: dag1_simple_lulc
+name: Simple LULC Workflow
+version: 1.0
+description: "Minimal 2-node workflow: LULC raster generation only"
+params:
+  - state
+  - district
+  - block
+  - start_year
+  - end_year
+alg_type_nodes:
+  - LULC_Algorithm
+dataset_type_nodes:
+  - MWS_Boundaries  # ROOT DATASET
+  - LULC_Raster
+
+---
+# Dataset Types
+--- !Dataset_Type
+id: MWS_Boundaries
+name: Micro-Watershed Boundaries
+description: Filtered micro-watershed boundaries for region of interest
+format: GEEAsset
+
+--- !Dataset_Type
+id: LULC_Raster
+name: LULC Raster Output
+description: Land Use Land Cover raster
+format: GEEAsset
+
+---
+# Algorithm Type
+--- !Algorithm_Type
+id: LULC_Algorithm
+name: LULC_Algorithm
+description: Generate LULC raster for a region
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: start_year
+    type: integer
+  - name: end_year
+    type: integer
+input_datasets:
+  - MWS_Boundaries
+outputs:
+  - LULC_Raster
