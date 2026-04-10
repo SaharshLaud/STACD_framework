@@ -183,8 +183,28 @@ This is where STACD shines — **no CLI commands needed** for workflow setup.
 - A Python DAG script is auto-generated from your YAML specification
 - The generated DAG is deployed to `$AIRFLOW_HOME/dags/` so Airflow picks it up automatically
 
-> **Note:** Sample YAML files are included in `stacd/yaml_configs/` for reference.
+> **Note:** Sample YAML files are included in `sample_yaml` for reference.
 
+### Inspect STACD Database (Optional but Recommended)
+
+STACD maintains its own metadata database (stacd_recompute.db) to track:
+
+Algorithms
+Datasets
+DAG structure
+Lineage relationships
+
+You can explore this database using a web UI via sqlite-web.
+
+- Install sqlite-web
+```bash
+pip install sqlite-web
+```
+- Launch Database Viewer
+```bash
+cd $AIRFLOW_HOME/stacd/database
+sqlite_web stacd_recompute.db --host 0.0.0.0 --port 8085
+```
 ---
 
 ## 8. Trigger Your Workflow
