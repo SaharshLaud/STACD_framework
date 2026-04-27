@@ -205,6 +205,24 @@ pip install sqlite-web
 cd $AIRFLOW_HOME/stacd/database
 sqlite_web stacd_recompute.db --host 0.0.0.0 --port 8085
 ```
+
+## Airflow Variables
+
+Before triggering any DAG, set the following Airflow Variables either via 
+the Airflow UI (Admin → Variables) or via CLI:
+
+### Auth token for CoreStack backend API
+```airflow variables set CORESTACK_AUTH_TOKEN <bearer_token>```
+
+Get a fresh token from the CoreStack backend:
+```bash
+curl -X POST http://<corestack_host>/api/v1/auth/login/ \
+  -H "Content-Type: application/json" \
+  -d '{"username": "<admin_user>", "password": "<password>"}'
+```
+
+#### Copy the `access` value from the response and set it above.
+#### Tokens generally expires every 90 days — regenerate and reset the variable when it does.
 ---
 
 ## 8. Trigger Your Workflow
