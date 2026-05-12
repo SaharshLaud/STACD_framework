@@ -1,0 +1,121 @@
+--- !DAG
+id: odisha_anugul_anugul_mining
+name: mining
+version: "1.0"
+description: "  Single DAG covering all 4 layer maps and all 40 algorithms."
+params:
+  - state
+  - district
+  - block
+  - start_year
+  - end_year
+  - gee_account_id
+
+alg_type_nodes:
+  # Stage 1
+  - Admin_Boundary
+  
+  - MWS_Layer
+  
+  - Mining
+  
+
+  
+dataset_type_nodes:
+  
+  - Mining_Asset
+  - Pan_India_MWS
+  - Admin_Boundary_Asset
+  - MWS_Boundaries
+
+
+
+
+--- !Dataset_Type
+id: Mining_Asset
+name: Mining Asset
+description: Mining zone output.
+format: GEEAsset
+
+--- !Dataset_Type
+id: Pan_India_MWS
+name: Pan-India Micro-Watershed Boundaries V2
+description: Public pan-India MWS V2 GEE asset. Root input for the entire pipeline.
+format: GEEAsset
+
+--- !Dataset_Type
+id: Admin_Boundary_Asset
+name: Admin Boundary Asset
+description: Tehsil-level admin boundary GEE asset.
+format: GEEAsset
+
+--- !Dataset_Type
+id: MWS_Boundaries
+name: Micro-Watershed Boundaries
+description: Filtered MWS boundaries for region of interest.
+format: GEEAsset
+
+# ═══════════════════════════════════════════════
+# ALGORITHM TYPES
+# ═══════════════════════════════════════════════
+
+--- !Algorithm_Type
+id: Admin_Boundary
+name: Admin_Boundary
+description: Root node. Clips tehsil boundary, pushes to GeoServer panchayat_boundaries workspace.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - Pan_India_MWS
+outputs:
+  - Admin_Boundary_Asset
+depends_on: []
+
+--- !Algorithm_Type
+id: MWS_Layer
+name: MWS_Layer
+description: Filters pan-India MWS V2 to tehsil, creates filtered_mws_uid GEE asset.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - Pan_India_MWS
+  - Admin_Boundary_Asset
+outputs:
+  - MWS_Boundaries
+depends_on:
+  - Admin_Boundary
+
+--- !Algorithm_Type
+id: Mining
+name: Mining
+description: Mining zone data.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - MWS_Boundaries
+outputs:
+  - Mining_Asset
+depends_on:
+  - MWS_Layer
+

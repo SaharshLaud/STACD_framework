@@ -1,0 +1,15 @@
+# Dataset Repository - CoRE Stack Lite
+# ROOT DATASET: Pan-India MWS V2 — public GEE asset, no region hardcoding.
+# This is the only dataset that needs to be pre-registered.
+# All other datasets (Admin_Boundary_Asset, MWS_Boundaries, LULC_Raster etc.)
+# are produced by the algorithms and registered automatically by Airflow during the run.
+
+---
+!Dataset_Instance
+type_id: Pan_India_MWS
+version: "1"
+region: pan_india
+asset_id: "projects/corestack-datasets/assets/datasets/hydrological_boundaries/microwatershed"
+metadata:
+  source: "CoRE Stack public GEE datasets account (corestack-datasets)"
+  description: "Pan-India micro-watershed V2 boundaries — public read-only GEE asset"

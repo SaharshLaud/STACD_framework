@@ -1,0 +1,898 @@
+--- !DAG
+id: stacd_dag_that_can_be_ran_for_an_year
+name: we can run these dags for 1 year
+version: "1.0"
+description: "  Single DAG covering all 4 layer maps and all 40 algorithms."
+params:
+  - state
+  - district
+  - block
+  - start_year
+  - end_year
+  - gee_account_id
+
+alg_type_nodes:
+  # Stage 1
+  - Admin_Boundary
+  # Stage 2
+  - NREGA_Clip
+  - MWS_Layer
+  # map_2_1
+  - Hydrology_Fortnightly
+  - Hydrology_Annual
+  # map_2_2
+  - LULC_Algorithm
+  - LULC_Vectorization
+  - Crop_Grids
+  - NDVI_Timeseries
+  - Drought
+  - Drought_Causality
+  # map_3 independent
+  - SOGE_Vector
+  - Stream_Order
+  - Restoration_Opportunity
+  - Aquifer_Vector
+  - Natural_Depression
+  - Dist_to_Drainage
+  - Catchment_Area
+  - Slope_Percentage
+  
+  - MWS_Connectivity
+  - MWS_Centroid
+  # map_3 dependent
+  - SWB_Layer
+  # map_4
+  - Drainage_Lines
+  - CLART_Layer
+  
+  - Terrain_Algorithm
+  - Terrain_Clusters
+  - LULC_Terrain_Slope
+  - LULC_Terrain_Plain
+  
+  
+dataset_type_nodes:
+  - Pan_India_MWS
+  - Admin_Boundary_Asset
+  - MWS_Boundaries
+  - NREGA_Layer
+  - Hydrology_Fortnightly_Asset
+  - Hydrology_Annual_Asset
+  - LULC_Raster
+  - LULC_Vector
+  - Crop_Grids_Asset
+  - NDVI_Timeseries_Asset
+  - Drought_Asset
+  - Drought_Causality_Asset
+  - SOGE_Vector_Asset
+  - Stream_Order_Asset
+  - Restoration_Opportunity_Asset
+  - Aquifer_Vector_Asset
+  - Natural_Depression_Asset
+  - Dist_to_Drainage_Asset
+  - Catchment_Area_Asset
+  - Slope_Percentage_Asset
+  - MWS_Connectivity_Asset
+  - MWS_Centroid_Asset
+  - SWB_Layer_Asset
+  - Drainage_Lines_Asset
+  - CLART_Layer_Asset
+
+  - Terrain_Raster
+  - Terrain_Vector
+  - LULC_Terrain_Slope_Asset
+  - LULC_Terrain_Plain_Asset
+
+
+
+--- !Dataset_Type
+id: Pan_India_MWS
+name: Pan-India Micro-Watershed Boundaries V2
+description: Public pan-India MWS V2 GEE asset. Root input for the entire pipeline.
+format: GEEAsset
+
+--- !Dataset_Type
+id: Admin_Boundary_Asset
+name: Admin Boundary Asset
+description: Tehsil-level admin boundary GEE asset.
+format: GEEAsset
+
+--- !Dataset_Type
+id: MWS_Boundaries
+name: Micro-Watershed Boundaries
+description: Filtered MWS boundaries for region of interest.
+format: GEEAsset
+
+--- !Dataset_Type
+id: NREGA_Layer
+name: NREGA Clipped Layer
+description: NREGA district/block clipped layer.
+format: GEEAsset
+
+--- !Dataset_Type
+id: Hydrology_Fortnightly_Asset
+name: Hydrology Fortnightly Asset
+description: Fortnightly hydrology raster.
+format: GEEAsset
+
+--- !Dataset_Type
+id: Hydrology_Annual_Asset
+name: Hydrology Annual Asset
+description: Annual hydrology raster.
+format: GEEAsset
+
+--- !Dataset_Type
+id: LULC_Raster
+name: LULC Raster Output
+description: Yearly LULC raster assets (start_year to end_year).
+format: GEEAsset
+
+--- !Dataset_Type
+id: LULC_Vector
+name: LULC Vector Output
+description: LULC per-MWS area statistics vector.
+format: GEEAsset
+
+
+
+--- !Dataset_Type
+id: Crop_Grids_Asset
+name: Crop Grids Asset
+description: Crop grid GEE export.
+format: GEEAsset
+
+
+
+--- !Dataset_Type
+id: NDVI_Timeseries_Asset
+name: NDVI Timeseries Asset
+description: NDVI timeseries data.
+format: GEEAsset
+
+--- !Dataset_Type
+id: Drought_Asset
+name: Drought Asset
+description: Final merged drought asset.
+format: GEEAsset
+
+--- !Dataset_Type
+id: Drought_Causality_Asset
+name: Drought Causality Asset
+description: Drought causality GeoServer layer.
+format: GeoServerLayer
+
+--- !Dataset_Type
+id: SOGE_Vector_Asset
+name: SOGE Vector Asset
+description: SOGE output. GeoServer workspace soge.
+format: GeoServerLayer
+
+--- !Dataset_Type
+id: Stream_Order_Asset
+name: Stream Order Asset
+description: Stream order vector. Returns vectorassetid. Required by SWBLayer.
+format: GEEAsset
+
+--- !Dataset_Type
+id: Restoration_Opportunity_Asset
+name: Restoration Opportunity Asset
+description: Restoration opportunity output.
+format: GEEAsset
+
+--- !Dataset_Type
+id: Aquifer_Vector_Asset
+name: Aquifer Vector Asset
+description: Aquifer vector output.
+format: GEEAsset
+
+--- !Dataset_Type
+id: Natural_Depression_Asset
+name: Natural Depression Asset
+description: GeoServer workspace naturaldepression.
+format: GeoServerLayer
+
+--- !Dataset_Type
+id: Dist_to_Drainage_Asset
+name: Distance to Nearest Drainage Line Asset
+description: GeoServer workspace distancenearestupstreamDL.
+format: GeoServerLayer
+
+--- !Dataset_Type
+id: Catchment_Area_Asset
+name: Catchment Area Asset
+description: GeoServer workspace catchmentareasingleflow. Required by SWBLayer.
+format: GeoServerLayer
+
+--- !Dataset_Type
+id: Slope_Percentage_Asset
+name: Slope Percentage Asset
+description: GeoServer workspace slopepercentage. Pre-create workspace before trigger.
+format: GeoServerLayer
+
+--- !Dataset_Type
+id: MWS_Connectivity_Asset
+name: MWS Connectivity Asset
+description: GeoServer workspace mwsconnectivity.
+format: GeoServerLayer
+
+--- !Dataset_Type
+id: MWS_Centroid_Asset
+name: MWS Centroid Asset
+description: MWS centroid point layer.
+format: GEEAsset
+
+--- !Dataset_Type
+id: SWB_Layer_Asset
+name: SWB Layer Asset
+description: Surface water body layer. Depends on CatchmentArea + StreamOrder + DrainageLines.
+format: GEEAsset
+
+
+
+--- !Dataset_Type
+id: Drainage_Lines_Asset
+name: Drainage Lines Asset
+description: Drainage lines output. Also feeds SWBLayer.
+format: GEEAsset
+
+--- !Dataset_Type
+id: CLART_Layer_Asset
+name: CLART Layer Asset
+description: CLART output. Lithology path must point to projects/ee-corestackdev/...
+format: GEEAsset
+
+
+
+--- !Dataset_Type
+id: Terrain_Raster
+name: Terrain Raster Output
+description: FABDEM terrain classification raster.
+format: GEEAsset
+
+--- !Dataset_Type
+id: Terrain_Vector
+name: Terrain Vector Output
+description: Terrain cluster vector.
+format: GEEAsset
+
+--- !Dataset_Type
+id: LULC_Terrain_Slope_Asset
+name: LULC Terrain Slope Vector
+description: LULC on slope terrain clusters.
+format: GEEAsset
+
+--- !Dataset_Type
+id: LULC_Terrain_Plain_Asset
+name: LULC Terrain Plain Vector
+description: LULC on plain terrain clusters.
+format: GEEAsset
+
+
+# ═══════════════════════════════════════════════
+# ALGORITHM TYPES
+# ═══════════════════════════════════════════════
+
+--- !Algorithm_Type
+id: Admin_Boundary
+name: Admin_Boundary
+description: Root node. Clips tehsil boundary, pushes to GeoServer panchayat_boundaries workspace.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - Pan_India_MWS
+outputs:
+  - Admin_Boundary_Asset
+depends_on: []
+
+--- !Algorithm_Type
+id: NREGA_Clip
+name: NREGA_Clip
+description: Clips NREGA shapefile. Blocked pending soitehsil.geojson + AWS creds from Aman/Ankit.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - Admin_Boundary_Asset
+outputs:
+  - NREGA_Layer
+depends_on:
+  - Admin_Boundary
+
+--- !Algorithm_Type
+id: MWS_Layer
+name: MWS_Layer
+description: Filters pan-India MWS V2 to tehsil, creates filtered_mws_uid GEE asset.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - Pan_India_MWS
+  - Admin_Boundary_Asset
+outputs:
+  - MWS_Boundaries
+depends_on:
+  - Admin_Boundary
+
+--- !Algorithm_Type
+id: Hydrology_Fortnightly
+name: Hydrology_Fortnightly
+description: Fortnightly hydrology raster. start_year always 2017 per Ankit sir.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: start_year
+    type: integer
+    default: 2017
+  - name: end_year
+    type: integer
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - MWS_Boundaries
+outputs:
+  - Hydrology_Fortnightly_Asset
+depends_on:
+  - MWS_Layer
+
+--- !Algorithm_Type
+id: Hydrology_Annual
+name: Hydrology_Annual
+description: Annual hydrology raster. start_year always 2017 per Ankit sir.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: start_year
+    type: integer
+    default: 2017
+  - name: end_year
+    type: integer
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - MWS_Boundaries
+outputs:
+  - Hydrology_Annual_Asset
+depends_on:
+  - MWS_Layer
+
+--- !Algorithm_Type
+id: LULC_Algorithm
+name: LULC_Algorithm
+description: Yearly LULC rasters (start_year to end_year). Critical prerequisite for 7+ downstream algos.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: start_year
+    type: integer
+  - name: end_year
+    type: integer
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - MWS_Boundaries
+outputs:
+  - LULC_Raster
+depends_on:
+  - MWS_Layer
+
+--- !Algorithm_Type
+id: LULC_Vectorization
+name: LULC_Vectorization
+description: Vectorizes LULC raster into per-MWS area statistics.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: start_year
+    type: integer
+  - name: end_year
+    type: integer
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - LULC_Raster
+outputs:
+  - LULC_Vector
+depends_on:
+  - LULC_Algorithm
+
+
+
+--- !Algorithm_Type
+id: Crop_Grids
+name: Crop_Grids
+description: Generates crop grid GEE export.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - LULC_Raster
+outputs:
+  - Crop_Grids_Asset
+depends_on:
+  - LULC_Algorithm
+
+
+
+
+
+--- !Algorithm_Type
+id: NDVI_Timeseries
+name: NDVI_Timeseries
+description: NDVI timeseries for the block.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: start_year
+    type: integer
+  - name: end_year
+    type: integer
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - LULC_Raster
+outputs:
+  - NDVI_Timeseries_Asset
+depends_on:
+  - LULC_Algorithm
+
+--- !Algorithm_Type
+id: Drought
+name: Drought
+description: Drought raster. Returns final merged asset_id.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: start_year
+    type: integer
+  - name: end_year
+    type: integer
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - LULC_Raster
+outputs:
+  - Drought_Asset
+depends_on:
+  - LULC_Algorithm
+
+--- !Algorithm_Type
+id: Drought_Causality
+name: Drought_Causality
+description: Drought causality. Returns geofilename + hostingplatform GeoServer.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: start_year
+    type: integer
+  - name: end_year
+    type: integer
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - Drought_Asset
+outputs:
+  - Drought_Causality_Asset
+depends_on:
+  - Drought
+
+--- !Algorithm_Type
+id: SOGE_Vector
+name: SOGE_Vector
+description: SOGE vector layer.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - MWS_Boundaries
+outputs:
+  - SOGE_Vector_Asset
+depends_on:
+  - MWS_Layer
+
+--- !Algorithm_Type
+id: Stream_Order
+name: Stream_Order
+description: Stream order vector. Returns vectorassetid. Required by SWBLayer.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - MWS_Boundaries
+outputs:
+  - Stream_Order_Asset
+depends_on:
+  - MWS_Layer
+
+--- !Algorithm_Type
+id: Restoration_Opportunity
+name: Restoration_Opportunity
+description: Restoration opportunity layer.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - MWS_Boundaries
+outputs:
+  - Restoration_Opportunity_Asset
+depends_on:
+  - MWS_Layer
+
+--- !Algorithm_Type
+id: Aquifer_Vector
+name: Aquifer_Vector
+description: Aquifer vector layer.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - MWS_Boundaries
+outputs:
+  - Aquifer_Vector_Asset
+depends_on:
+  - MWS_Layer
+
+--- !Algorithm_Type
+id: Natural_Depression
+name: Natural_Depression
+description: Natural depression layer. GeoServer workspace naturaldepression.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - MWS_Boundaries
+outputs:
+  - Natural_Depression_Asset
+depends_on:
+  - MWS_Layer
+
+--- !Algorithm_Type
+id: Dist_to_Drainage
+name: Dist_to_Drainage
+description: Distance to nearest drainage line. GeoServer workspace distancenearestupstreamDL.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - MWS_Boundaries
+outputs:
+  - Dist_to_Drainage_Asset
+depends_on:
+  - MWS_Layer
+
+--- !Algorithm_Type
+id: Catchment_Area
+name: Catchment_Area
+description: Catchment area singleflow. GeoServer workspace catchmentareasingleflow. Required by SWBLayer.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - MWS_Boundaries
+outputs:
+  - Catchment_Area_Asset
+depends_on:
+  - MWS_Layer
+
+--- !Algorithm_Type
+id: Slope_Percentage
+name: Slope_Percentage
+description: Slope percentage. GeoServer workspace slopepercentage. Pre-create workspace before trigger.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - MWS_Boundaries
+outputs:
+  - Slope_Percentage_Asset
+depends_on:
+  - MWS_Layer
+
+
+--- !Algorithm_Type
+id: MWS_Connectivity
+name: MWS_Connectivity
+description: MWS connectivity data. GeoServer workspace mwsconnectivity.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - MWS_Boundaries
+outputs:
+  - MWS_Connectivity_Asset
+depends_on:
+  - MWS_Layer
+
+--- !Algorithm_Type
+id: MWS_Centroid
+name: MWS_Centroid
+description: MWS centroid point layer.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - MWS_Boundaries
+outputs:
+  - MWS_Centroid_Asset
+depends_on:
+  - MWS_Layer
+
+--- !Algorithm_Type
+id: SWB_Layer
+name: SWB_Layer
+description: Surface water body layer. Depends on CatchmentArea + StreamOrder + DrainageLines.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: start_year
+    type: integer
+  - name: end_year
+    type: integer
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - Catchment_Area_Asset
+  - Stream_Order_Asset
+  - Drainage_Lines_Asset
+  - LULC_Raster
+outputs:
+  - SWB_Layer_Asset
+depends_on:
+  - Catchment_Area
+  - Stream_Order
+  - Drainage_Lines
+  - LULC_Algorithm
+
+
+
+--- !Algorithm_Type
+id: Drainage_Lines
+name: Drainage_Lines
+description: Drainage lines. Output also feeds SWBLayer. Parent of CLARTLayer.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - MWS_Boundaries
+outputs:
+  - Drainage_Lines_Asset
+depends_on:
+  - MWS_Layer
+
+--- !Algorithm_Type
+id: CLART_Layer
+name: CLART_Layer
+description: CLART layer. BLOCKER — lithology asset path must be hardcoded to projects/ee-corestackdev/... not GEEASSETPATH.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - Drainage_Lines_Asset
+outputs:
+  - CLART_Layer_Asset
+depends_on:
+  - Drainage_Lines
+
+
+
+
+--- !Algorithm_Type
+id: Terrain_Algorithm
+name: Terrain_Algorithm
+description: FABDEM terrain raster clipped to MWS. Parent of TerrainClusters, LULCTerrainSlope, LULCTerrainPlain.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - MWS_Boundaries
+outputs:
+  - Terrain_Raster
+depends_on:
+  - MWS_Layer
+
+--- !Algorithm_Type
+id: Terrain_Clusters
+name: Terrain_Clusters
+description: Terrain cluster vector per MWS.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - Terrain_Raster
+outputs:
+  - Terrain_Vector
+depends_on:
+  - Terrain_Algorithm
+
+--- !Algorithm_Type
+id: LULC_Terrain_Slope
+name: LULC_Terrain_Slope
+description: LULC proportions on slope terrain clusters. Depends on Terrain_Raster + LULC_Raster.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: start_year
+    type: integer
+  - name: end_year
+    type: integer
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - Terrain_Raster
+  - LULC_Raster
+outputs:
+  - LULC_Terrain_Slope_Asset
+depends_on:
+  - Terrain_Algorithm
+  - LULC_Algorithm
+
+--- !Algorithm_Type
+id: LULC_Terrain_Plain
+name: LULC_Terrain_Plain
+description: LULC proportions on plain terrain clusters. Depends on Terrain_Raster + LULC_Raster.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: start_year
+    type: integer
+  - name: end_year
+    type: integer
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - Terrain_Raster
+  - LULC_Raster
+outputs:
+  - LULC_Terrain_Plain_Asset
+depends_on:
+  - Terrain_Algorithm
+  - LULC_Algorithm
+

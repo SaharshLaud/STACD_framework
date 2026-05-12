@@ -1,0 +1,321 @@
+--- !DAG
+id: zoi_dag
+name: zoi dag
+version: "1.0"
+description: "  Single DAG covering all 4 layer maps and all 40 algorithms."
+params:
+  - state
+  - district
+  - block
+  - start_year
+  - end_year
+  - gee_account_id
+
+alg_type_nodes:
+  - Admin_Boundary
+  - MWS_Layer
+  - LULC_Algorithm
+  
+  
+  - Stream_Order
+  - Catchment_Area
+  - Drainage_Lines
+  - SWB_Layer
+  - ZOI
+  - Cropping_Intensity
+  
+
+dataset_type_nodes:
+  - Pan_India_MWS
+  - Admin_Boundary_Asset
+  - MWS_Boundaries
+  - LULC_Raster
+  - Stream_Order_Asset
+  - Catchment_Area_Asset
+  - Drainage_Lines_Asset
+  - SWB_Layer_Asset
+  - ZOI_Asset
+  - Cropping_Intensity_Asset
+
+
+--- !Dataset_Type
+id: Pan_India_MWS
+name: Pan-India Micro-Watershed Boundaries V2
+description: Public pan-India MWS V2 GEE asset. Root input for the entire pipeline.
+format: GEEAsset
+
+--- !Dataset_Type
+id: Admin_Boundary_Asset
+name: Admin Boundary Asset
+description: Tehsil-level admin boundary GEE asset.
+format: GEEAsset
+
+--- !Dataset_Type
+id: MWS_Boundaries
+name: Micro-Watershed Boundaries
+description: Filtered MWS boundaries for region of interest.
+format: GEEAsset
+
+
+--- !Dataset_Type
+id: LULC_Raster
+name: LULC Raster Output
+description: Yearly LULC raster assets (start_year to end_year).
+format: GEEAsset
+
+
+
+--- !Dataset_Type
+id: Stream_Order_Asset
+name: Stream Order Asset
+description: Stream order vector. Returns vectorassetid. Required by SWBLayer.
+format: GEEAsset
+
+--- !Dataset_Type
+id: Catchment_Area_Asset
+name: Catchment Area Asset
+description: GeoServer workspace catchmentareasingleflow. Required by SWBLayer.
+format: GeoServerLayer
+
+
+--- !Dataset_Type
+id: Drainage_Lines_Asset
+name: Drainage Lines Asset
+description: Drainage lines output. Also feeds SWBLayer.
+format: GEEAsset
+
+--- !Dataset_Type
+id: SWB_Layer_Asset
+name: SWB Layer Asset
+description: Surface water body layer. Depends on CatchmentArea + StreamOrder + DrainageLines.
+format: GEEAsset
+
+
+--- !Dataset_Type
+id: ZOI_Asset
+name: ZOI Asset
+description: Zone of Influence. Also generates CroppingIntensity internally.
+format: GEEAsset
+
+
+--- !Dataset_Type
+id: Cropping_Intensity_Asset
+name: Cropping Intensity Asset
+description: Cropping intensity derived from LULC. Required by ZOI.
+format: GEEAsset
+
+
+# ═══════════════════════════════════════════════
+# ALGORITHM TYPES
+# ═══════════════════════════════════════════════
+
+--- !Algorithm_Type
+id: Admin_Boundary
+name: Admin_Boundary
+description: Root node. Clips tehsil boundary, pushes to GeoServer panchayat_boundaries workspace.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - Pan_India_MWS
+outputs:
+  - Admin_Boundary_Asset
+depends_on: []
+
+
+
+--- !Algorithm_Type
+id: MWS_Layer
+name: MWS_Layer
+description: Filters pan-India MWS V2 to tehsil, creates filtered_mws_uid GEE asset.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - Pan_India_MWS
+  - Admin_Boundary_Asset
+outputs:
+  - MWS_Boundaries
+depends_on:
+  - Admin_Boundary
+
+
+
+--- !Algorithm_Type
+id: LULC_Algorithm
+name: LULC_Algorithm
+description: Yearly LULC rasters (start_year to end_year). Critical prerequisite for 7+ downstream algos.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: start_year
+    type: integer
+  - name: end_year
+    type: integer
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - MWS_Boundaries
+outputs:
+  - LULC_Raster
+depends_on:
+  - MWS_Layer
+
+
+
+
+--- !Algorithm_Type
+id: Stream_Order
+name: Stream_Order
+description: Stream order vector. Returns vectorassetid. Required by SWBLayer.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - MWS_Boundaries
+outputs:
+  - Stream_Order_Asset
+depends_on:
+  - MWS_Layer
+
+
+
+--- !Algorithm_Type
+id: Catchment_Area
+name: Catchment_Area
+description: Catchment area singleflow. GeoServer workspace catchmentareasingleflow. Required by SWBLayer.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - MWS_Boundaries
+outputs:
+  - Catchment_Area_Asset
+depends_on:
+  - MWS_Layer
+
+
+
+--- !Algorithm_Type
+id: Drainage_Lines
+name: Drainage_Lines
+description: Drainage lines. Output also feeds SWBLayer. Parent of CLARTLayer.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - MWS_Boundaries
+outputs:
+  - Drainage_Lines_Asset
+depends_on:
+  - MWS_Layer
+
+--- !Algorithm_Type
+id: SWB_Layer
+name: SWB_Layer
+description: Surface water body layer. Depends on CatchmentArea + StreamOrder + DrainageLines.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: start_year
+    type: integer
+  - name: end_year
+    type: integer
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - Catchment_Area_Asset
+  - Stream_Order_Asset
+  - Drainage_Lines_Asset
+  - LULC_Raster
+outputs:
+  - SWB_Layer_Asset
+depends_on:
+  - Catchment_Area
+  - Stream_Order
+  - Drainage_Lines
+  - LULC_Algorithm
+
+
+--- !Algorithm_Type
+id: ZOI
+name: ZOI
+description: Zone of Influence. Also generates CroppingIntensity internally. If ZOI CI fails, ensure LULC_Algorithm has run first.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - SWB_Layer_Asset
+outputs:
+  - ZOI_Asset
+depends_on:
+  - SWB_Layer
+
+
+--- !Algorithm_Type
+id: Cropping_Intensity
+name: Cropping_Intensity
+description: Derives cropping intensity from LULC. Required by ZOI.
+params:
+  - name: state
+    type: string
+  - name: district
+    type: string
+  - name: block
+    type: string
+  - name: start_year
+    type: integer
+  - name: end_year
+    type: integer
+  - name: gee_account_id
+    type: integer
+input_datasets:
+  - ZOI_Asset
+outputs:
+  - Cropping_Intensity_Asset
+depends_on:
+  - ZOI

@@ -1,0 +1,596 @@
+# Algorithm Instances Repository - CoRE Stack Lite (Full Pipeline)
+# All APIs are synchronous - they block until GEE tasks complete and return asset_ids
+# Base URL: http://127.0.0.1:8000/api/v1/
+# Auth: Bearer token stored in Airflow Variable CORESTACK_AUTH_TOKEN
+
+# ─────────────────────────────────────────────
+# MAP 1
+# ─────────────────────────────────────────────
+
+---
+!Algorithm_Instance
+type: Admin_Boundary
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-03-23 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/generate_block_layer/"
+
+---
+!Algorithm_Instance
+type: NREGA_Clip
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-03-23 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/generate_nrega_layer/"
+
+---
+!Algorithm_Instance
+type: MWS_Layer
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-03-23 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/generate_mws_layer/"
+
+# ─────────────────────────────────────────────
+# MAP 2_1
+# ─────────────────────────────────────────────
+
+---
+!Algorithm_Instance
+type: Hydrology_Fortnightly
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/hydrology_fortnightly/"
+
+---
+!Algorithm_Instance
+type: Hydrology_Annual
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/hydrology_annual/"
+
+# ─────────────────────────────────────────────
+# MAP 2_2
+# ─────────────────────────────────────────────
+
+---
+!Algorithm_Instance
+type: LULC_Algorithm
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-03-16 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/lulc_v3/"
+
+---
+!Algorithm_Instance
+type: LULC_Vectorization
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-03-16 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/lulc_vector/"
+
+---
+!Algorithm_Instance
+type: Cropping_Intensity
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-14 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/generate_ci_layer/"
+
+---
+!Algorithm_Instance
+type: Crop_Grids
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/crop_grid/"
+
+---
+!Algorithm_Instance
+type: Change_Detection
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/change_detection/"
+
+---
+!Algorithm_Instance
+type: Change_Detection_Vector
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/change_detection_vector/"
+
+---
+!Algorithm_Instance
+type: NDVI_Timeseries
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/generate_ndvi_timeseries/"
+
+---
+!Algorithm_Instance
+type: Drought
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/generate_drought_layer/"
+
+---
+!Algorithm_Instance
+type: Drought_Causality
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/mws_drought_causality/"
+
+# ─────────────────────────────────────────────
+# MAP 3
+# ─────────────────────────────────────────────
+
+---
+!Algorithm_Instance
+type: SOGE_Vector
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/soge_vector/"
+
+---
+!Algorithm_Instance
+type: Stream_Order
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/stream_order/"
+
+---
+!Algorithm_Instance
+type: Restoration_Opportunity
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/restoration_opportunity/"
+
+---
+!Algorithm_Instance
+type: Aquifer_Vector
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/aquifer_vector/"
+
+---
+!Algorithm_Instance
+type: Natural_Depression
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/generate_natural_depression/"
+
+---
+!Algorithm_Instance
+type: Dist_to_Drainage
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/generate_distance_nearest_dl/"
+
+---
+!Algorithm_Instance
+type: Catchment_Area
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/generate_catchment_area_singleflow/"
+
+---
+!Algorithm_Instance
+type: Slope_Percentage
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/generate_slope_percentage/"
+
+---
+!Algorithm_Instance
+type: LCW_Conflict
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/generate_lcw/"
+
+---
+!Algorithm_Instance
+type: Agro_Ecological
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/generate_agroecological/"
+
+---
+!Algorithm_Instance
+type: Factory_CSR
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/generate_factory_csr/"
+
+---
+!Algorithm_Instance
+type: Green_Credit
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/generate_green_credit/"
+
+---
+!Algorithm_Instance
+type: Mining
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/generate_mining/"
+
+---
+!Algorithm_Instance
+type: MWS_Connectivity
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/generate_mws_connectivity_data/"
+
+---
+!Algorithm_Instance
+type: MWS_Centroid
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/generate_mws_centroid/"
+
+---
+!Algorithm_Instance
+type: SWB_Layer
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/generate_swb/"
+
+---
+!Algorithm_Instance
+type: ZOI
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/generate_zoi_data/"
+
+# ─────────────────────────────────────────────
+# MAP 4
+# ─────────────────────────────────────────────
+
+---
+!Algorithm_Instance
+type: Drainage_Lines
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/generate_drainage_layer/"
+
+---
+!Algorithm_Instance
+type: CLART_Layer
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/generate_clart/"
+
+---
+!Algorithm_Instance
+type: Site_Suitability
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/plantation_site_suitability/"
+
+---
+!Algorithm_Instance
+type: Terrain_Algorithm
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-03-16 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/generate_terrain_raster/"
+
+---
+!Algorithm_Instance
+type: Terrain_Clusters
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-03-16 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/generate_terrain_descriptor/"
+
+---
+!Algorithm_Instance
+type: LULC_Terrain_Slope
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-03-16 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/terrain_lulc_slope_cluster/"
+
+---
+!Algorithm_Instance
+type: LULC_Terrain_Plain
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-03-16 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/terrain_lulc_plain_cluster/"
+
+---
+!Algorithm_Instance
+type: Tree_Health_CH_Raster
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-14 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/tree_health_raster/"
+
+---
+!Algorithm_Instance
+type: Tree_Health_CH_Vector
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-14 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/tree_health_vector/"
+
+---
+!Algorithm_Instance
+type: Tree_Health_CCD_Raster
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-14 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/tree_health_raster/"
+
+---
+!Algorithm_Instance
+type: Tree_Health_CCD_Vector
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-14 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/tree_health_vector/"
+
+---
+!Algorithm_Instance
+type: Tree_Health_OC_Raster
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-14 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/tree_health_raster/"
+
+---
+!Algorithm_Instance
+type: Tree_Health_OC_Vector
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-14 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/tree_health_vector/"

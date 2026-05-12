@@ -1,0 +1,46 @@
+
+---
+!Algorithm_Instance
+type: Admin_Boundary
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-03-23 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/generate_block_layer/"
+
+
+---
+!Algorithm_Instance
+type: MWS_Layer
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-03-23 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/generate_mws_layer/"
+
+
+
+
+
+
+---
+!Algorithm_Instance
+type: Mining
+version: "1"
+assets:
+  code: "https://github.com/core-stack-org/core-stack-backend/tree/corestack-lite"
+date: 2026-04-06 00:00:00
+execution_modes:
+  api:
+    enabled: true
+    priority: 1
+    url: "http://127.0.0.1:8000/api/v1/generate_mining/"
+
