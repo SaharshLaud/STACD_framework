@@ -339,6 +339,47 @@ metadata:
   source: "Your data source"
   description: "Description of the dataset"
 ```
+---
+
+## 11. Algorithm Response Handling
+
+STACD expects algorithms to respond via HTTP. The framework handles each response code differently — some are treated as graceful non-events, others as hard failures.
+
+### Expected HTTP Response Codes
+
+| HTTP Code | Meaning | Airflow Task State | Dataset Registered? |
+|---|---|---|---|
+| `200 OK` | Algorithm succeeded, asset produced | ✅ **success** | ✅ Yes |
+| `400 Bad Request` | Invalid input parameters | ⬛ **skipped** | ❌ No |
+| `404 Not Found` | No data available for this location/params | ⬛ **skipped** | ❌ No |
+| `500 Internal Server Error` | Pipeline/computation failure | 🔴 **failed** | ❌ No |
+
+### What Happens Downstream
+
+- If a task is **skipped** (400/404) — its downstream dataset registration task is also skipped. No asset is written to the STAC-D catalog. The overall DAG run continues for other branches.
+- If a task **fails** (500) — its downstream dataset task is marked `upstream_failed`. The DAG run is marked as failed overall.
+- If a task **succeeds** (200) — the returned `asset_id` is registered as a new `DatasetInstance` in the STACD database and exported as a STAC-D catalog item.
+
+### Expected Response Body
+
+For a `200` response, the algorithm API must return a JSON body in this format:
+
+```json
+{
+  "asset_id": "projects/your-gee-project/assets/path/to/output",
+  "version": "1",
+  "hosting_platform": "GEE"
+}
+```
+
+Any `400`, `404`, or `500` response should include an `error` and `message` field for the logs:
+
+```json
+{
+  "error": "NO_DATA",
+  "message": "No data found for this district"
+}
+```
 
 ---
 
