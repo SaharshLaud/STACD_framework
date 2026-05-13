@@ -126,6 +126,13 @@ Select all three files using the file choosers, then click **Initialize Workflow
 
 ![Initialize Workflow Form](images/06-initialize-workflow-form.png)
 
+
+**Note:**
+
+> ⚠️ Before clicking Initialize Workflow: Ensure the API endpoints in your Algorithm Repository YAML are updated to point to your backend. Each algorithm's execution_modes.api.url must be reachable from inside the container. Incorrect endpoints will cause algorithm tasks to fail at runtime.
+
+
+
 ---
 
 ## Step 6 — Workflow Initialized
