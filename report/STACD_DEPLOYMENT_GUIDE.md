@@ -155,14 +155,23 @@ Starting Catalog Server on port 8002...
 
 ```bash
 docker exec -it stacd-airflow bash
+
+# First time only — initializes the mounted airflow.db
+airflow db migrate
+
+# Start Airflow
 airflow webserver -p 8080 &
 airflow scheduler &
 ```
+
 
 Wait for:
 ```
 Listening at: http://0.0.0.0:8080
 ```
+
+Note:
+> `airflow db migrate` is only needed once when starting with a fresh empty `airflow.db`. On all future restarts, skip it and run webserver and scheduler directly.
 
 ---
 
