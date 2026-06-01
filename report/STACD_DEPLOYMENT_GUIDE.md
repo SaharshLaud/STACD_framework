@@ -7,32 +7,35 @@
 
 ## What You're Deploying
 
-The system has three parts:
+Everything runs inside a single Docker container. Only your data folders are mounted from outside.
 
 | Component | Where it runs | Port |
 |---|---|---|
-| Airflow + STACD Browser + STAC Browser | Docker container | 8080, 8081, 8082 |
-| Dynamic Catalog Server | Host machine (Python) | 8002 |
-| Your Backend API | Your Docker container | Any (e.g. 9000) |
+| Airflow Webserver + Scheduler | Inside Docker | 8080 |
+| STACD Browser (Vue) | Inside Docker | 8081 |
+| STAC Browser (Vue) | Inside Docker | 8082 |
+| Dynamic Catalog Server | Inside Docker | 8002 |
+| Your Backend API | Your own Docker container | Any (e.g. 9000) |
 
 ```
 Your machine
 ├── Docker Container (saharshlaud/corestack-stacd-airflow)
 │   ├── Airflow Webserver        → localhost:8080
 │   ├── STACD Browser (Vue)      → localhost:8081
-│   └── STAC Browser (Vue)       → localhost:8082
+│   ├── STAC Browser (Vue)       → localhost:8082
+│   └── Dynamic Catalog Server   → localhost:8002
+│         ↑ reads from mounted data folder
 │
-├── dynamic_catalog_server.py    → localhost:8002  (reads DB + serves JSON)
-└── Your Backend API             → localhost:9000  (or your port)
+├── ~/stacd_testing/stacd_catalog_data/   ← MOUNTED (DAG JSON outputs)
+├── ~/stacd_testing/airflow_db/           ← MOUNTED (databases)
+└── Your Backend API                      → localhost:9000 (or your port)
 ```
 
 ---
 
 ## Prerequisites
 
-- Docker installed and running
-- Python 3.10+ on your host machine
-- `pip install flask flask-cors` on host
+- Docker installed and running — nothing else needed on the host
 - A Google OAuth Client ID and Secret (for login)
 - Your backend API running and accessible
 
@@ -45,18 +48,22 @@ Create this folder structure on your machine:
 ```bash
 mkdir -p ~/stacd_testing/stacd_catalog_data
 mkdir -p ~/stacd_testing/airflow_db
+
+# Create empty placeholder DB files
+# (Docker requires files to exist before mounting them as files)
 touch ~/stacd_testing/airflow_db/stacd_database.db
+touch ~/stacd_testing/airflow_db/airflow.db
 ```
 
 Your folder should look like:
 
 ```
 ~/stacd_testing/
-├── stacd_catalog_data/       ← DAG outputs written here
+├── stacd_catalog_data/       ← DAG JSON outputs written here
 ├── airflow_db/
-│   └── stacd_database.db     ← Shared SQLite DB (empty to start)
-├── .env                      ← Environment variables (create in Step 2)
-└── dynamic_catalog_server.py ← Catalog server (create in Step 3)
+│   ├── airflow.db            ← Airflow users, roles, DAG history (persists across restarts)
+│   └── stacd_database.db     ← STACD datasets and algorithm runs
+└── .env                      ← Environment variables (create in Step 2)
 ```
 
 ---
@@ -85,7 +92,7 @@ EOF
 5. Copy the Client ID and Client Secret into the `.env` file
 
 **Setting `CORESTACK_AUTH_TOKEN`:**  
-This is the JWT token your backend API requires in the `Authorization` header. Set it to the token your backend expects. If your backend doesn't require auth, leave this blank. The DAG generator reads this from the environment and passes it in API calls.
+This is the JWT token your backend API requires in the `Authorization` header. If your backend doesn't require auth, leave this blank.
 
 **Generating a secret key:**
 ```bash
@@ -95,247 +102,7 @@ Paste the output as `AIRFLOW__WEBSERVER__SECRET_KEY`.
 
 ---
 
-## Step 3 — Create the Dynamic Catalog Server
-
-Create `~/stacd_testing/dynamic_catalog_server.py`:
-
-```python
-#!/usr/bin/env python3
-"""
-Database-Backed Dynamic STAC Catalog Server
-"""
-from flask import Flask, jsonify
-import os
-from pathlib import Path
-import json
-import sqlite3
-from flask_cors import CORS
-
-app = Flask(__name__)
-CORS(app)
-
-CATALOG_BASE_URL = os.environ.get("CATALOG_BASE_URL", "http://localhost:8002")
-CATALOG_OUTPUT_DIR = Path(os.environ.get("CATALOG_OUTPUT_DIR", os.path.expanduser("~/stacd_catalog")))
-db_path = os.environ.get("DB_PATH", os.path.expanduser("~/stacd_testing/airflow_db/stacd_database.db"))
-
-print("=" * 80)
-print("DATABASE-BACKED DYNAMIC STAC CATALOG SERVER")
-print("=" * 80)
-print(f"Database: {db_path}")
-print(f"Catalog output: {CATALOG_OUTPUT_DIR}")
-print("=" * 80)
-
-
-def get_meta(row_meta):
-    if row_meta is None:
-        return {}
-    if isinstance(row_meta, dict):
-        return row_meta
-    try:
-        return json.loads(row_meta)
-    except:
-        return {}
-
-
-def query_db(sql, params=()):
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    rows = conn.execute(sql, params).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
-
-
-@app.route('/datasets/catalog.json')
-def datasets_root_catalog():
-    rows = query_db("SELECT meta_info FROM dataset_instances WHERE is_root_dataset = 0")
-    states = set()
-    for r in rows:
-        meta = get_meta(r['meta_info'])
-        if meta.get('state'):
-            states.add(meta['state'])
-
-    catalog = {
-        "stac_version": "1.0.0", "type": "Catalog",
-        "id": "stacd-datasets", "title": "STAC Browser",
-        "description": "Geospatial datasets generated by STACD workflows.",
-        "links": [
-            {"rel": "self", "href": f"{CATALOG_BASE_URL}/datasets/catalog.json", "type": "application/json"},
-            {"rel": "root", "href": f"{CATALOG_BASE_URL}/catalog.json", "type": "application/json"},
-            {"rel": "alternate", "href": f"{CATALOG_BASE_URL}/dags/catalog.json", "type": "application/json", "title": "View Workflows (STAC-D Browser)"}
-        ]
-    }
-    for state in sorted(states):
-        catalog["links"].append({
-            "rel": "child",
-            "href": f"{CATALOG_BASE_URL}/datasets/{state}/catalog.json",
-            "type": "application/json",
-            "title": f"{state.title()} State"
-        })
-    return jsonify(catalog)
-
-
-@app.route('/datasets/<state>/catalog.json')
-def state_catalog(state):
-    rows = query_db("SELECT meta_info FROM dataset_instances WHERE is_root_dataset = 0")
-    districts = set()
-    for r in rows:
-        meta = get_meta(r['meta_info'])
-        if meta.get('state') == state and meta.get('district'):
-            districts.add(meta['district'])
-
-    catalog = {
-        "stac_version": "1.0.0", "type": "Catalog",
-        "id": state, "title": f"{state.title()} State",
-        "description": f"Datasets for {state.title()} state",
-        "links": [
-            {"rel": "self", "href": f"{CATALOG_BASE_URL}/datasets/{state}/catalog.json", "type": "application/json"},
-            {"rel": "parent", "href": f"{CATALOG_BASE_URL}/datasets/catalog.json", "type": "application/json"},
-            {"rel": "root", "href": f"{CATALOG_BASE_URL}/catalog.json", "type": "application/json"}
-        ]
-    }
-    for district in sorted(districts):
-        catalog["links"].append({
-            "rel": "child",
-            "href": f"{CATALOG_BASE_URL}/datasets/{state}/{district}/catalog.json",
-            "type": "application/json",
-            "title": f"{district.title()} District"
-        })
-    return jsonify(catalog)
-
-
-@app.route('/datasets/<state>/<district>/catalog.json')
-def district_catalog(state, district):
-    rows = query_db("SELECT meta_info FROM dataset_instances WHERE is_root_dataset = 0")
-    blocks = set()
-    for r in rows:
-        meta = get_meta(r['meta_info'])
-        if meta.get('state') == state and meta.get('district') == district and meta.get('block'):
-            blocks.add(meta['block'])
-
-    catalog = {
-        "stac_version": "1.0.0", "type": "Catalog",
-        "id": f"{state}_{district}", "title": f"{district.title()} District",
-        "description": f"Datasets for {district.title()} district in {state.title()} state",
-        "links": [
-            {"rel": "self", "href": f"{CATALOG_BASE_URL}/datasets/{state}/{district}/catalog.json", "type": "application/json"},
-            {"rel": "parent", "href": f"{CATALOG_BASE_URL}/datasets/{state}/catalog.json", "type": "application/json"},
-            {"rel": "root", "href": f"{CATALOG_BASE_URL}/catalog.json", "type": "application/json"}
-        ]
-    }
-    for block in sorted(blocks):
-        catalog["links"].append({
-            "rel": "child",
-            "href": f"{CATALOG_BASE_URL}/datasets/{state}/{district}/{block}/collection.json",
-            "type": "application/json",
-            "title": f"{block.title()} Block"
-        })
-    return jsonify(catalog)
-
-
-@app.route('/datasets/<state>/<district>/<block>/collection.json')
-def block_collection(state, district, block):
-    collection = {
-        "stac_version": "1.0.0", "type": "Collection",
-        "id": f"{state}_{district}_{block}",
-        "title": f"{block.title()} Block Datasets",
-        "description": f"STACD datasets for {block.title()}, {district.title()}, {state.title()}",
-        "license": "proprietary",
-        "extent": {
-            "spatial": {"bbox": [[68.0, 6.0, 97.0, 37.0]]},
-            "temporal": {"interval": [["2017-01-01T00:00:00Z", None]]}
-        },
-        "links": [
-            {"rel": "self", "href": f"{CATALOG_BASE_URL}/datasets/{state}/{district}/{block}/collection.json", "type": "application/json"},
-            {"rel": "parent", "href": f"{CATALOG_BASE_URL}/datasets/{state}/{district}/catalog.json", "type": "application/json"},
-            {"rel": "root", "href": f"{CATALOG_BASE_URL}/catalog.json", "type": "application/json"},
-            {"rel": "alternate", "href": f"{CATALOG_BASE_URL}/dags/catalog.json", "type": "application/json", "title": "View Workflows (STACD Browser)"}
-        ]
-    }
-    items_dir = CATALOG_OUTPUT_DIR / "datasets" / state.title() / district.title() / block.title()
-    if items_dir.exists():
-        for f in sorted(items_dir.glob("*.json")):
-            collection["links"].append({
-                "rel": "item",
-                "href": f"{CATALOG_BASE_URL}/datasets/{state}/{district}/{block}/{f.name}",
-                "type": "application/json",
-                "title": f.stem.replace('_', ' ').title()
-            })
-    return jsonify(collection)
-
-
-@app.route('/datasets/<state>/<district>/<block>/<filename>')
-def serve_item(state, district, block, filename):
-    file_path = CATALOG_OUTPUT_DIR / "datasets" / state.title() / district.title() / block.title() / filename
-    if file_path.exists():
-        with open(file_path) as f:
-            return jsonify(json.load(f))
-    return jsonify({"error": "Item not found"}), 404
-
-
-@app.route('/dags/catalog.json')
-def dags_root_catalog():
-    dags_dir = CATALOG_OUTPUT_DIR / "dags"
-    catalog = {
-        "stac_version": "1.0.0",
-        "stac_extensions": ["https://github.com/saharsh-laud/stacd-spec/v1.0.0/schema.json"],
-        "type": "Catalog", "id": "stacd-workflows", "title": "STACD Browser",
-        "description": "Browse workflow DAGs, algorithms, and their relationships.",
-        "links": [
-            {"rel": "self", "href": f"{CATALOG_BASE_URL}/dags/catalog.json", "type": "application/json"},
-            {"rel": "root", "href": f"{CATALOG_BASE_URL}/catalog.json", "type": "application/json"},
-            {"rel": "alternate", "href": f"{CATALOG_BASE_URL}/datasets/catalog.json", "type": "application/json", "title": "View Datasets (STAC Browser)"}
-        ]
-    }
-    if dags_dir.exists():
-        for dag_folder in sorted(dags_dir.iterdir()):
-            if dag_folder.is_dir():
-                dag_file = dag_folder / "dag.json"
-                if dag_file.exists():
-                    try:
-                        dag_data = json.loads(dag_file.read_text())
-                        catalog["links"].append({
-                            "rel": "child",
-                            "href": f"{CATALOG_BASE_URL}/dags/{dag_folder.name}/dag.json",
-                            "type": "application/json",
-                            "title": dag_data.get("title", dag_folder.name)
-                        })
-                    except:
-                        pass
-    return jsonify(catalog)
-
-
-@app.route('/dags/<path:path>')
-def serve_stacd(path):
-    file_path = CATALOG_OUTPUT_DIR / "dags" / path
-    if file_path.exists():
-        with open(file_path) as f:
-            return jsonify(json.load(f))
-    return jsonify({"error": "Not found"}), 404
-
-
-@app.route('/catalog.json')
-def root_catalog():
-    return jsonify({
-        "stac_version": "1.0.0", "type": "Catalog",
-        "id": "stacd-root", "title": "Root Catalog",
-        "description": "Browse geospatial datasets (STAC) or workflow structures (STAC-D)",
-        "links": [
-            {"rel": "self", "href": f"{CATALOG_BASE_URL}/catalog.json", "type": "application/json"},
-            {"rel": "child", "href": f"{CATALOG_BASE_URL}/datasets/catalog.json", "type": "application/json", "title": "Datasets (STAC Browser)"},
-            {"rel": "child", "href": f"{CATALOG_BASE_URL}/dags/catalog.json", "type": "application/json", "title": "Workflows (STAC-D Browser)"}
-        ]
-    })
-
-
-if __name__ == '__main__':
-    print(f"\nServer: {CATALOG_BASE_URL}")
-    print(f"Browse: {CATALOG_BASE_URL}/datasets/catalog.json\n")
-    app.run(host='0.0.0.0', port=8002, debug=True)
-```
-
----
-
-## Step 4 — Pull the Docker Image
+## Step 3 — Pull the Docker Image
 
 ```bash
 docker pull saharshlaud/corestack-stacd-airflow:latest
@@ -343,151 +110,102 @@ docker pull saharshlaud/corestack-stacd-airflow:latest
 
 ---
 
-## Step 5 — Start Everything
+## Step 4 — Start the Container
 
-You need **3 terminals** running simultaneously.
+You need **2 terminals** running simultaneously.
 
-### Terminal 1 — Your Backend API
-
-If your backend runs in Docker, make sure it's running and accessible. Note its port number.
-
-If using the included dummy backend for testing:
-```bash
-# Download dummy backend or use your own
-# dummy backend runs on port 9000
-python3 server.py
-```
-
-### Terminal 2 — Catalog Server
-
-```bash
-cd ~/stacd_testing
-
-pip install flask flask-cors
-
-export DB_PATH=~/stacd_testing/airflow_db/stacd_database.db
-export CATALOG_OUTPUT_DIR=~/stacd_testing/stacd_catalog_data
-export CATALOG_BASE_URL=http://localhost:8002
-export STACD_BROWSER_URL=http://localhost:8082
-
-python3 dynamic_catalog_server.py
-```
-
-You should see:
-```
-DATABASE-BACKED DYNAMIC STAC CATALOG SERVER
-Database: /home/youruser/stacd_testing/airflow_db/stacd_database.db
-Catalog output: /home/youruser/stacd_testing/stacd_catalog_data
-Running on http://0.0.0.0:8002
-```
-
-### Terminal 3 — Airflow Container
+### Terminal 1 — Start the Container
 
 ```bash
 docker run -it \
   --name stacd-airflow \
-  -p 8080:8080 \
-  -p 8081:8081 \
-  -p 8082:8082 \
+  -p 0.0.0.0:8080:8080 \
+  -p 0.0.0.0:8081:8081 \
+  -p 0.0.0.0:8082:8082 \
+  -p 0.0.0.0:8002:8002 \
   -v ~/stacd_testing/stacd_catalog_data:/opt/airflow/stacd_catalog \
   -v ~/stacd_testing/airflow_db/stacd_database.db:/opt/airflow/stacd/database/stacd_database.db \
+  -v ~/stacd_testing/airflow_db/airflow.db:/opt/airflow/airflow.db \
   --env-file ~/stacd_testing/.env \
   --add-host=host.docker.internal:host-gateway \
   saharshlaud/corestack-stacd-airflow:latest
 ```
 
-**What `--add-host=host.docker.internal:host-gateway` does:** This lets the container reach your backend API running on the host machine using the hostname `host.docker.internal`. So if your backend is on port 9000, the DAG calls `http://host.docker.internal:9000/...`.
-
 You should see:
 ```
 Initializing STACD roles...
+Initializing access_requests table...
+Creating operator roles...
 Starting STACD Browser on port 8081...
 Starting STAC Browser on port 8082...
+Starting Catalog Server on port 8002...
 ==========================================
   Browsers started.
-  To start Airflow, run:
+  STACD Browser : http://localhost:8081
+  STAC Browser  : http://localhost:8082
+  To start Airflow:
     airflow webserver -p 8080
     airflow scheduler
 ==========================================
 ```
 
----
+**What `--add-host=host.docker.internal:host-gateway` does:** Lets the container reach your backend API on the host machine using the hostname `host.docker.internal`. So if your backend is on port 9000, the DAG calls `http://host.docker.internal:9000/...`.
 
-## Step 6 — Start Airflow
-
-In a new terminal, exec into the container:
+### Terminal 2 — Start Airflow
 
 ```bash
 docker exec -it stacd-airflow bash
-```
-
-Inside the container, run:
-
-```bash
 airflow webserver -p 8080 &
 airflow scheduler &
 ```
 
-You'll see Airflow starting up with permission setup logs. Wait for:
+Wait for:
 ```
 Listening at: http://0.0.0.0:8080
 ```
 
 ---
 
-## Step 7 — First Time Login and User Setup
+## Step 5 — First Time Login and User Setup
 
-### 7a. Open Airflow and Log In
+### 5a. Open Airflow and Log In
 
-Go to `http://localhost:8080` in your browser. You should see a **Sign in with Google** button (not a username/password form). If you see username/password, the OAuth config isn't loaded — check your `.env` file.
+Go to `http://localhost:8080`. You should see a **Sign in with Google** button. Click it and complete the OAuth flow.
 
-Click **Sign in with Google** and complete the OAuth flow.
+### 5b. Find Your Username
 
-### 7b. Find Your User ID
-
-After logging in you'll get an error:
+After logging in you'll see:
 > "Your user has no roles and/or permissions!"
 
-This is expected on first login. Your user was created but has no role yet. Find your user ID from the container logs — look for a line like:
+This is expected on first login. Find your username:
 
-```
-INFO - Added user google_107905055496200253347
-```
-
-The `google_107905055496200253347` part is your username. Copy it.
-
-You can also find it with:
 ```bash
 docker exec -it stacd-airflow bash -c "airflow users list"
 ```
 
-### 7c. Assign Roles
+It will look like `google_107905055496200253347`.
 
-Back in a terminal, run:
+### 5c. Assign Admin Role
 
 ```bash
-# Replace the username with yours from the logs above
-
-# Give yourself viewer access (standard user)
-docker exec -it stacd-airflow bash -c \
-  "airflow users add-role -u google_107905055496200253347 -r STACD_Viewer"
-
-# Give yourself full admin access
+# Replace with your username from above
 docker exec -it stacd-airflow bash -c \
   "airflow users add-role -u google_107905055496200253347 -r Admin"
 ```
 
-Now go back to `http://localhost:8080` and log in again. You should land on the Airflow home page.
+Go back to `http://localhost:8080` and log in again. You should land on the Airflow home page with full access.
+
+> **Note:** This step only needs to be done once. Since `airflow.db` is mounted, your admin role persists across all future restarts.
 
 ---
 
-## Step 8 — Connecting Your Backend API
+## Step 6 — Connecting Your Backend API
 
 ### How the DAG calls your backend
 
-Each DAG task calls your backend API via HTTP POST. The URL is defined in the YAML config file used to generate the DAG. The container reaches your backend using `host.docker.internal` as the hostname.
+Each DAG task calls your backend via HTTP POST. The container reaches your backend using `host.docker.internal` as the hostname.
 
-For example, if your backend runs on your machine at port `9000`:
+For example, if your backend runs at port `9000`:
 ```
 http://host.docker.internal:9000/api/v1/your_endpoint/
 ```
@@ -499,19 +217,19 @@ If your backend requires a JWT token, set it in `.env`:
 CORESTACK_AUTH_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
-The DAG code reads this environment variable and passes it as:
+The DAG code reads this and passes it as:
 ```
 Authorization: Bearer <CORESTACK_AUTH_TOKEN>
 ```
 
-To verify the token is available inside the container:
+Verify it's available inside the container:
 ```bash
 docker exec -it stacd-airflow bash -c "echo \$CORESTACK_AUTH_TOKEN"
 ```
 
 ### Pointing a DAG at your backend
 
-When you create a YAML config for a DAG, set the API URL to your backend:
+In the YAML config for a DAG:
 ```yaml
 execution_modes:
   api:
@@ -522,7 +240,7 @@ execution_modes:
 
 ---
 
-## Step 9 — Triggering a DAG
+## Step 7 — Triggering a DAG
 
 1. Open `http://localhost:8080`
 2. Find your DAG in the list
@@ -530,27 +248,25 @@ execution_modes:
 4. Fill in parameters (state, district, block, etc.)
 5. Click **Trigger**
 
-Watch the task run. When complete, the system automatically:
+When complete, the system automatically:
 - Writes STAC JSON files to `~/stacd_testing/stacd_catalog_data/datasets/`
 - Writes STACD workflow JSON files to `~/stacd_testing/stacd_catalog_data/dags/`
 - Records everything in `stacd_database.db`
 
 ---
 
-## Step 10 — Viewing Results in the Browsers
+## Step 8 — Viewing Results in the Browsers
 
 **STAC Browser (datasets view):**
 ```
 http://localhost:8082/?url=http://localhost:8002/datasets/catalog.json
 ```
-
 Navigate: Root Catalog → State → District → Block → Collection → Individual Items
 
 **STACD Browser (workflow view):**
 ```
 http://localhost:8081/?url=http://localhost:8002/dags/catalog.json
 ```
-
 Navigate: Root Catalog → DAG → Algorithms → Individual Algorithm → Version details
 
 ---
@@ -560,36 +276,35 @@ Navigate: Root Catalog → DAG → Algorithms → Individual Algorithm → Versi
 ### Stop everything
 ```bash
 docker stop stacd-airflow && docker rm stacd-airflow
-pkill -f dynamic_catalog_server.py
 ```
 
-### Restart (all data is preserved in `~/stacd_testing/`)
+### Restart (all data persists — users, roles, DAG history, JSON files)
 ```bash
-# Terminal 1 - catalog server
-cd ~/stacd_testing
-export DB_PATH=~/stacd_testing/airflow_db/stacd_database.db
-export CATALOG_OUTPUT_DIR=~/stacd_testing/stacd_catalog_data
-export CATALOG_BASE_URL=http://localhost:8002
-export STACD_BROWSER_URL=http://localhost:8082
-python3 dynamic_catalog_server.py
-
-# Terminal 2 - container
+# Terminal 1 - container
 docker run -it \
   --name stacd-airflow \
-  -p 8080:8080 -p 8081:8081 -p 8082:8082 \
+  -p 0.0.0.0:8080:8080 \
+  -p 0.0.0.0:8081:8081 \
+  -p 0.0.0.0:8082:8082 \
+  -p 0.0.0.0:8002:8002 \
   -v ~/stacd_testing/stacd_catalog_data:/opt/airflow/stacd_catalog \
   -v ~/stacd_testing/airflow_db/stacd_database.db:/opt/airflow/stacd/database/stacd_database.db \
+  -v ~/stacd_testing/airflow_db/airflow.db:/opt/airflow/airflow.db \
   --env-file ~/stacd_testing/.env \
   --add-host=host.docker.internal:host-gateway \
   saharshlaud/corestack-stacd-airflow:latest
 
-# Terminal 3 - start airflow (inside container)
+# Terminal 2 - start airflow (inside container)
 docker exec -it stacd-airflow bash
 airflow webserver -p 8080 &
 airflow scheduler &
 ```
 
-On restart, you do **not** need to re-assign roles — the database persists via the mounted `stacd_database.db` file.
+On restart, you do **not** need to re-assign roles — everything persists via the mounted files.
+
+### Moving to a different machine
+
+Copy the entire `~/stacd_testing/` folder to the new machine, then run the same `docker pull` + `docker run` command. All users, roles, DAG history, and JSON files transfer with it.
 
 ---
 
@@ -600,14 +315,33 @@ On restart, you do **not** need to re-assign roles — the database persists via
 | 8080 | Airflow Webserver | http://localhost:8080 |
 | 8081 | STACD Browser | http://localhost:8081 |
 | 8082 | STAC Browser | http://localhost:8082 |
-| 8002 | Catalog Server (host) | http://localhost:8002 |
+| 8002 | Catalog Server (inside container) | http://localhost:8002 |
+
+---
+
+## What Each Volume Mount Does
+
+```bash
+-v ~/stacd_testing/stacd_catalog_data:/opt/airflow/stacd_catalog
+```
+DAG outputs (STAC and STACD JSON files) written by Airflow tasks appear on your host. The catalog server inside the container reads from this same path.
+
+```bash
+-v ~/stacd_testing/airflow_db/stacd_database.db:/opt/airflow/stacd/database/stacd_database.db
+```
+The STACD SQLite database — stores dataset instances, algorithm executions, DAG records. Persists across container restarts.
+
+```bash
+-v ~/stacd_testing/airflow_db/airflow.db:/opt/airflow/airflow.db
+```
+The Airflow SQLite database — stores users, roles, DAG run history, XCom data, connections. **This is what keeps your users and roles alive across restarts and machine transfers.**
 
 ---
 
 ## Troubleshooting
 
 **"Your user has no roles" after login**  
-Run Step 7c to assign roles.
+Run Step 5c to assign the Admin role.
 
 **"Can't find AUTH_USER_REGISTRATION_ROLE: STACD_Viewer"**  
 The init script didn't run. Inside the container:
@@ -634,31 +368,40 @@ Your backend requires auth. Set `CORESTACK_AUTH_TOKEN` in `.env` and restart the
 **DAG task fails with "Connection refused"**  
 Your backend isn't reachable. Check:
 1. Is your backend running?
-2. Is the URL using `host.docker.internal` not `localhost`?
-3. Did you pass `--add-host=host.docker.internal:host-gateway` when running the container?
+2. Is the URL in the YAML using `host.docker.internal` not `localhost`?
+3. Did you pass `--add-host=host.docker.internal:host-gateway` in `docker run`?
+
+**Catalog server not responding on port 8002**  
+Check if it started correctly:
+```bash
+docker exec -it stacd-airflow bash -c "curl http://localhost:8002/catalog.json"
+```
+If it fails, check logs:
+```bash
+docker logs stacd-airflow | grep -i "catalog\|8002\|flask"
+```
 
 **STAC Browser shows empty catalog**  
 The catalog server is reading an empty DB. Check:
 1. Did the DAG complete successfully?
-2. Is the DB file mounted correctly? Run: `docker inspect stacd-airflow | grep -A5 Mounts`
-3. Check DB has data: `sqlite3 ~/stacd_testing/airflow_db/stacd_database.db "SELECT count(*) FROM dataset_instances;"`
+2. Is the DB file mounted correctly?
+```bash
+docker inspect stacd-airflow | grep -A5 Mounts
+```
+3. Check DB has data:
+```bash
+sqlite3 ~/stacd_testing/airflow_db/stacd_database.db \
+  "SELECT count(*) FROM dataset_instances;"
+```
+
+**Users lost after restart**  
+You're not mounting `airflow.db`. Make sure the third `-v` mount is in your `docker run` command:
+```bash
+-v ~/stacd_testing/airflow_db/airflow.db:/opt/airflow/airflow.db
+```
 
 **`airflow` command not found on host**  
 Always run airflow commands inside the container:
 ```bash
 docker exec -it stacd-airflow bash -c "airflow <command>"
 ```
-
----
-
-## What Each Volume Mount Does
-
-```bash
--v ~/stacd_testing/stacd_catalog_data:/opt/airflow/stacd_catalog
-```
-DAG outputs (STAC JSON files) written inside container appear on your host. The catalog server reads from your host copy.
-
-```bash
--v ~/stacd_testing/airflow_db/stacd_database.db:/opt/airflow/stacd/database/stacd_database.db
-```
-The STACD SQLite database is shared between the container (writes) and the catalog server on the host (reads). Only the single file is mounted — not the whole folder — so the Python source files in that folder remain intact inside the container.
