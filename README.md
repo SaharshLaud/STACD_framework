@@ -2,6 +2,25 @@
 
 > **STACD** (SpatioTemporal Asset Catalog for Dataflows) is a YAML-driven geospatial workflow management system built on top of Apache Airflow. Users define their workflows as YAML files, and the system handles database initialization, DAG generation, and deployment — all from the Airflow dashboard.
 
+## Table of Contents
+
+- [Prerequisites](#prerequisites)
+- [1. Install Apache Airflow](#1-install-apache-airflow)
+- [2. Clone the STACD Repository](#2-clone-the-stacd-repository)
+- [3. Setup Folder Structure](#3-setup-folder-structure)
+- [4. Set Environment Variables](#4-set-environment-variables)
+- [5. Initialize Airflow](#5-initialize-airflow)
+- [6. Start Airflow](#6-start-airflow)
+- [7. Initialize Your Workflow (via Plugin Dashboard)](#7-initialize-your-workflow-via-plugin-dashboard)
+- [Airflow Variables](#airflow-variables)
+- [8. Trigger Your Workflow](#8-trigger-your-workflow)
+- [9. Triggering and Monitoring Airflow DAGs via the REST API](#9-triggering-and-monitoring-airflow-dags-via-the-rest-api)
+- [10. Updating an Existing Workflow](#10-updating-an-existing-workflow)
+- [11. Writing Your Own YAML Workflow](#11-writing-your-own-yaml-workflow)
+- [12. Algorithm Response Handling](#12-algorithm-response-handling)
+- [Troubleshooting](#troubleshooting)
+- [Project Structure Reference](#project-structure-reference)
+
 ---
 
 ## Prerequisites
