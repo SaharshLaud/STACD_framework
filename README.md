@@ -247,7 +247,201 @@ curl -X POST http://<corestack_host>/api/v1/auth/login/ \
 
 ---
 
-## 9. Updating an Existing Workflow
+## 9. Triggering and Monitoring Airflow DAGs via the REST API
+
+This describes the generic pattern used across our pipelines (drone, bioacoustic, and others)
+to trigger an Airflow DAG run and poll it until completion, using Airflow's stable REST API
+(`/api/v1/...`). This is standard Airflow behavior — not specific to our setup — so the same
+pattern applies to any Airflow deployment with the REST API enabled.
+
+---
+
+### 1. Prerequisites — enabling the API
+
+By default, Airflow's REST API requires authentication. In `airflow.cfg`, under the `[api]`
+section:
+
+```ini
+[api]
+auth_backends = airflow.api.auth.backend.basic_auth
+```
+
+This enables HTTP Basic Auth for API requests, using the same username/password as an Airflow
+web user. After changing this, the webserver needs to be restarted for it to take effect.
+
+---
+
+### 2. Triggering a DAG run
+
+**Endpoint:**
+```
+POST /api/v1/dags/{dag_id}/dagRuns
+```
+
+**Example:**
+```bash
+curl -X POST "http://<airflow-host>/api/v1/dags/<dag_id>/dagRuns" \
+  -H "Content-Type: application/json" \
+  -u "admin:admin" \
+  -d '{
+        "conf": {
+          "param1": "value1",
+          "param2": "value2"
+        }
+      }'
+```
+
+**Key points:**
+
+- `<dag_id>` is the DAG's identifier as registered in Airflow (e.g. `drone_pipeline`,
+  `cem_pipeline`).
+- The request body is a JSON object. The `conf` key holds whatever parameters the DAG's tasks
+  expect — this is entirely DAG-specific and is read inside the DAG via
+  `dag_run.conf` / `context['dag_run'].conf`.
+- The body cannot be empty — an empty `{}` is accepted by some Airflow versions but is best
+  avoided; at minimum send `{"conf": {...}}`.
+- Authentication is sent as HTTP Basic Auth (`-u user:pass` in curl, or an
+  `Authorization: Basic <base64(user:pass)>` header if constructing the request manually).
+- If a specific run identifier is not provided in the request, Airflow auto-generates one in
+  the form `manual__<ISO-8601-timestamp>` (e.g. `manual__2026-06-19T11:30:24.805888+00:00`).
+  This applies to runs triggered through the API in the same way it applies to clicking
+  "Trigger DAG" in the UI.
+
+**Response** (on success, HTTP 200):
+
+```json
+{
+  "dag_run_id": "manual__2026-06-19T11:30:24.805888+00:00",
+  "dag_id": "<dag_id>",
+  "state": "queued",
+  "conf": { "param1": "value1", "param2": "value2" },
+  "execution_date": "2026-06-19T11:30:24.805888+00:00",
+  ...
+}
+```
+
+The caller should store `dag_run_id` from this response — it's required for all subsequent
+polling/status calls.
+
+**Common gotcha:** if the DAG is paused, the run will be created but will not actually
+execute. DAGs can be unpaused via:
+```
+PATCH /api/v1/dags/{dag_id}
+Body: {"is_paused": false}
+```
+
+---
+
+### 3. Polling DAG run status
+
+**Endpoint:**
+```
+GET /api/v1/dags/{dag_id}/dagRuns/{dag_run_id}
+```
+
+**Example:**
+```bash
+curl -X GET "http://<airflow-host>/api/v1/dags/<dag_id>/dagRuns/<dag_run_id>" \
+  -u "admin:admin"
+```
+
+**Response:**
+
+```json
+{
+  "dag_run_id": "manual__2026-06-19T11:30:24.805888+00:00",
+  "dag_id": "<dag_id>",
+  "state": "running",
+  ...
+}
+```
+
+The `state` field is what callers should check. Typical values:
+
+| State | Meaning |
+|---|---|
+| `queued` | Run created, not yet started |
+| `running` | DAG is actively executing tasks |
+| `success` | All tasks completed successfully |
+| `failed` | At least one task failed (and didn't retry into success) |
+
+**Recommended polling pattern:**
+
+```
+POST /dagRuns                         → get dag_run_id
+loop:
+    GET /dagRuns/{dag_run_id}         → read "state"
+    if state in ("success", "failed"): stop
+    else: wait N seconds, repeat
+```
+
+A short, fixed interval (e.g. every 5 seconds) is a reasonable default for most pipelines.
+There's no built-in push/webhook notification for completion via this API — polling is the
+standard approach unless a separate mechanism (e.g. Airflow's own callbacks/SLA features, or
+an external listener DAG) is set up.
+
+---
+
+### 4. Fetching task-level logs (optional, for debugging)
+
+If a run fails, or for more granular progress info, individual task logs can be retrieved:
+
+**Endpoint:**
+```
+GET /api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}
+```
+
+**Example:**
+```bash
+curl -X GET "http://<airflow-host>/api/v1/dags/<dag_id>/dagRuns/<dag_run_id>/taskInstances/<task_id>/logs/1" \
+  -u "admin:admin"
+```
+
+- `{task_id}` is the specific task's identifier within the DAG (as defined in the DAG file).
+- `{try_number}` starts at `1` for the first attempt and increments on each retry.
+- This returns the raw log text for that task attempt — useful for surfacing error details to
+  an end user or for debugging a failed pipeline run without needing direct access to the
+  Airflow UI.
+
+---
+
+### 5. Notes on base URL / path prefixes
+
+If Airflow is deployed behind a reverse proxy under a subpath (e.g. `/airflow/` instead of at
+the domain root), two things need to stay consistent:
+
+- Airflow's own `AIRFLOW__WEBSERVER__BASE_URL` config must match the externally-visible path,
+  so that links and redirects generated by Airflow's webserver resolve correctly.
+- All API calls (trigger, poll, logs) must be made against that same externally-visible base
+  path — e.g. `http://<host>/airflow/api/v1/dags/...` rather than assuming the API is always at
+  the domain root.
+
+When calling the API from inside the same Docker network as the Airflow webserver, it's
+usually simpler and more reliable to call the container directly by its Docker network name and
+internal port (bypassing any external reverse-proxy path prefix entirely), and only use the
+externally-visible path when the caller is outside that network.
+
+---
+
+### 6. Summary — minimal integration pattern
+
+For any backend service that needs to trigger a pipeline and wait for the result:
+
+1. `POST /api/v1/dags/{dag_id}/dagRuns` with a `conf` payload → get back `dag_run_id`.
+2. Poll `GET /api/v1/dags/{dag_id}/dagRuns/{dag_run_id}` every few seconds until `state` is
+   `success` or `failed`.
+3. On `failed`, optionally fetch task logs via the `taskInstances/.../logs/{try_number}`
+   endpoint to surface a useful error message.
+4. On `success`, proceed with whatever post-processing the calling service needs (e.g. reading
+   output files the DAG produced).
+
+This pattern is generic to Airflow's stable REST API and works the same way regardless of what
+the DAG itself does internally — it only depends on the DAG's `dag_id` and whatever `conf`
+parameters that specific DAG expects.
+
+---
+
+## 10. Updating an Existing Workflow
 
 After initialization, use the STACD plugin pages to update individual components without re-initializing:
 
@@ -260,7 +454,7 @@ After initialization, use the STACD plugin pages to update individual components
 
 ---
 
-## 10. Writing Your Own YAML Workflow
+## 11. Writing Your Own YAML Workflow
 
 To define a custom workflow, you need 3 YAML files:
 
@@ -341,7 +535,7 @@ metadata:
 ```
 ---
 
-## 11. Algorithm Response Handling
+## 12. Algorithm Response Handling
 
 STACD expects algorithms to respond via HTTP. The framework handles each response code differently — some are treated as graceful non-events, others as hard failures.
 
