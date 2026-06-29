@@ -84,6 +84,11 @@ CORESTACK_AUTH_TOKEN=your_backend_jwt_token_here
 EOF
 ```
 
+> **Note:** The default `CATALOG_BASE_URL=http://localhost:8002` assumes you're accessing 
+> the catalog server directly, as set up in this guide. If you later place Airflow or the 
+> catalog server behind a reverse proxy, update this value to match the externally-reachable 
+> URL instead.
+
 **Getting Google OAuth credentials:**
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a project → APIs & Services → Credentials → Create OAuth 2.0 Client ID
@@ -205,6 +210,23 @@ docker exec -it stacd-airflow bash -c \
 Go back to `http://localhost:8080` and log in again. You should land on the Airflow home page with full access.
 
 > **Note:** This step only needs to be done once. Since `airflow.db` is mounted, your admin role persists across all future restarts.
+
+### 5d. Sync DAG Permissions (optional, legacy)
+
+After adding or updating DAGs, you can run this script to reconcile permission-views 
+for existing operator roles:
+
+```bash
+docker exec -it stacd-airflow bash -c \
+  "python3 stacd/database/sync_dag_permissions.py"
+```
+
+It only updates permissions for roles that already exist — it does **not** create missing 
+roles (it logs a warning and skips any role it can't find). It's idempotent, safe to re-run.
+
+> **Note:** This script is considered legacy. Airflow's native scheduler-level `access_control` 
+> parsing in the generated DAG files takes precedence over this script's database edits, so it 
+> may have limited effect going forward.
 
 ---
 
