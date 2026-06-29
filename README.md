@@ -14,6 +14,7 @@
 - [7. Initialize Your Workflow (via Plugin Dashboard)](#7-initialize-your-workflow-via-plugin-dashboard)
 - [Airflow Variables](#airflow-variables)
 - [8. Trigger Your Workflow](#8-trigger-your-workflow)
+  - [Execution Primitives](#execution-primitives)
 - [9. Triggering and Monitoring Airflow DAGs via the REST API](#9-triggering-and-monitoring-airflow-dags-via-the-rest-api)
 - [10. Updating an Existing Workflow](#10-updating-an-existing-workflow)
 - [11. Writing Your Own YAML Workflow](#11-writing-your-own-yaml-workflow)
@@ -206,7 +207,7 @@ This is where STACD shines — **no CLI commands needed** for workflow setup.
 
 ### Inspect STACD Database (Optional but Recommended)
 
-STACD maintains its own metadata database (stacd_recompute.db) to track:
+STACD maintains its own metadata database (stacd_database.db) to track:
 
 Algorithms
 Datasets
@@ -222,7 +223,7 @@ pip install sqlite-web
 - Launch Database Viewer
 ```bash
 cd $AIRFLOW_HOME/stacd/database
-sqlite_web stacd_recompute.db --host 0.0.0.0 --port 8085
+sqlite_web stacd_database.db --host 0.0.0.0 --port 8085
 ```
 
 ## Airflow Variables
@@ -255,14 +256,29 @@ curl -X POST http://<corestack_host>/api/v1/auth/login/ \
 
    | Parameter | Example Value | Description |
    |---|---|---|
-   | `execution_type` | `fullexec` | Run type: `fullexec`, `update_algo`, `update_dataset` |
+   | `execution_type` | `fullexec` | Execution primitive — see [Execution Primitives](#execution-primitives) below |
    | `state` | `jharkhand` | State name |
    | `district` | `dumka` | District name |
    | `block` | `masalia` | Block/tehsil name |
    | `start_year` | `2020` | Analysis start year |
    | `end_year` | `2021` | Analysis end year |
+   | `gee_account_id` | `1` | GEE service account ID — supplied at trigger time via the Airflow UI, not configured during setup |
 
 6. Click **Trigger** and monitor the run in the **Grid** or **Graph** view
+
+### Execution Primitives
+
+The `execution_type` parameter controls which subset of the DAG graph is executed. Five values are supported:
+
+| Execution Type | What It Triggers | When to Use | Required Extra Params |
+|---|---|---|---|
+| `fullexec` | Runs all root datasets and root algorithms — the complete pipeline from entry points through all downstream tasks | Fresh run for a new region or full recomputation | None |
+| `update_algo` | Runs a single specified algorithm and its downstream dependents only | An algorithm's code or version has changed and you want to recompute only its outputs | `updated_algo` (algorithm task ID) |
+| `update_dataset` | Fetches the updated root dataset, then runs all algorithms that consume it as input | A root dataset (e.g. a boundary file) has been updated and downstream outputs need recomputation | `updated_dataset` (dataset type ID) |
+| `update_dag` | Runs only algorithm nodes that have never had a successful execution in the database — i.e., newly added nodes after a DAG structure update | The DAG YAML was modified to add new algorithm/dataset nodes and you want to run only the new additions without re-running existing nodes | None (auto-detected from DB) |
+| `resume_exec` | Queries the database for algorithm tasks that failed in a previous run (matching the same region parameters) and re-runs only those | A previous run partially failed and you want to retry the failed tasks without re-running successful ones | None (auto-detected from DB; uses `state`, `district`, `block`, `start_year`, `end_year` to match) |
+
+> **Note:** If `update_dag` finds no new (unexecuted) algorithm nodes, or `resume_exec` finds no failed tasks for the given parameters, the DAG will raise a `ValueError` at the branching step and the run will fail immediately.
 
 ---
 
@@ -471,6 +487,8 @@ After initialization, use the STACD plugin pages to update individual components
 | **Update DAG Structure** | STACD → Update DAG | Two YAMLs: new node definitions + updated DAG structure |
 | **View Dataset Lineage** | STACD Lineage → STACD Dataset Lineage | (no upload — browse lineage of executed datasets) |
 
+> **Dataset Lineage** walks backward from any registered dataset instance through the algorithm execution that produced it, then through that algorithm's input datasets, recursively — up to 20 levels deep. The result is rendered as an interactive left-to-right hierarchical graph (powered by vis-network) with a node inspector panel showing full metadata for any clicked node. This is implemented in `stacd_lineage_plugin.py` (Airflow plugin view) backed by the `get_dataset_lineage()` engine in `lineage_queries.py`.
+
 ---
 
 ## 11. Writing Your Own YAML Workflow
@@ -484,11 +502,13 @@ Defines the workflow graph — which algorithms run, which datasets they consume
 id: my_workflow
 name: My Custom Workflow
 version: 1.0
+group: corestack
 description: "Description of the workflow"
 params:
   - state
   - district
   - block
+  - gee_account_id
 alg_type_nodes:
   - My_Algorithm
 dataset_type_nodes:
@@ -524,8 +544,12 @@ outputs:
   - Output_Dataset
 ```
 
+> **`group`** is optional. If omitted it defaults to `corestack`. It determines which RBAC role owns the generated DAG: `corestack` → `CoreStack_Op`, `drone` → `Drone_Op`, `bioacoustic` → `BioAcoustic_Op`.
+
 ### Algorithm Repo YAML
 Defines how each algorithm is executed (API endpoint, Docker image, or both):
+
+**API mode** — call a remote HTTP endpoint:
 ```yaml
 --- !Algorithm_Instance
 type: My_Algorithm
@@ -539,6 +563,37 @@ execution_modes:
     priority: 1
     url: "http://localhost:8000/api/v1/my_algorithm/"
 ```
+
+**Docker mode** — run a Python function inside a container:
+```yaml
+--- !Algorithm_Instance
+type: My_Algorithm
+version: "2"
+assets:
+  code: "https://github.com/your-org/your-repo"
+date: 2026-01-01 00:00:00
+execution_modes:
+  docker:
+    enabled: true
+    priority: 1
+    image: "your-org/your-algo-image:latest"
+    module: "computing.lulc.lulc_v3_clip_river_basin"
+    function: "lulc_river_basin"
+```
+
+**Mixed mode** — if both `api` and `docker` are enabled, the one with the lower `priority` number wins. For example, setting `api.priority: 2` and `docker.priority: 1` will prefer Docker; the API endpoint serves as a fallback if you later disable Docker.
+
+#### Docker Stdout Convention
+
+When running in Docker mode, the container function's return value is captured via a structured stdout protocol. The generated in-container script prints a JSON result between two marker lines:
+
+```
+===RESULT_JSON_START===
+{"status": "success", "asset_ids": ["projects/..."], "hosting_platform": "GEE", "stac_spec": {...}}
+===RESULT_JSON_END===
+```
+
+The host-side runner (`simple_docker_runner.py`) streams container logs line-by-line and captures the JSON payload between these markers. All other stdout lines are forwarded to the Airflow task log as-is.
 
 ### Dataset Repo YAML
 Defines root datasets (pre-existing inputs that are not produced by any algorithm):
@@ -601,7 +656,7 @@ Any `400`, `404`, or `500` response should include an `error` and `message` fiel
 | Issue | Solution |
 |---|---|
 | DAG not appearing after initialization | Wait 30 seconds for Airflow to scan the `dags/` folder, then refresh the page |
-| "DAG already exists" error on Initialize | The DAG was already initialized. Use **STACD → Update DAG** to modify it, or delete the database file at `$AIRFLOW_HOME/stacd/database/stacd_recompute.db` to start fresh |
+| "DAG already exists" error on Initialize | The DAG was already initialized. Use **STACD → Update DAG** to modify it, or delete the database file at `$AIRFLOW_HOME/stacd/database/stacd_database.db` to start fresh |
 | Import errors in webserver logs | Make sure `PYTHONPATH` includes `$AIRFLOW_HOME/stacd` and restart Airflow |
 | `AIRFLOW_HOME` not set correctly | Always run `export AIRFLOW_HOME=$(pwd)/airflow` from the `airflow_stacd` project root before starting Airflow |
 
